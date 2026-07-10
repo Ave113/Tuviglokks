@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="vi-VN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Ứng dụng lập lá số Tử Vi Đẩu Số chuẩn xác theo giờ TuviGLOBAL, hiệu chỉnh múi giờ lịch sử Việt Nam và luận giải chi tiết bằng công nghệ Trí tuệ Nhân tạo AI." />
+    <title>Lá Số Tử Vi & Luận Giải AI</title>
+    <script>
+      (function() {
+        var _fetch = window.fetch;
+        var _currentFetch = _fetch;
+        try {
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return _currentFetch;
+            },
+            set: function(val) {
+              _currentFetch = val;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          console.warn("Failed to redefine window.fetch descriptor:", e);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

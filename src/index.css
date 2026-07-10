@@ -1,0 +1,510 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Space+Grotesk:wght@300..700&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Lora", "Merriweather", Georgia, serif;
+  --font-display: "Playfair Display", serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --animate-spin-slow: spin 30s linear infinite;
+
+  /* Custom palette used across the app */
+  --color-stone-150: oklch(96.5% 0.002 56);
+  --color-stone-250: oklch(93.5% 0.004 56);
+  --color-stone-350: oklch(88% 0.006 56);
+  --color-stone-650: oklch(48% 0.012 56);
+  --color-stone-850: oklch(28% 0.014 56);
+  --color-stone-855: oklch(27% 0.014 56);
+  --color-stone-955: oklch(18% 0.008 56);
+  --color-indigo-150: oklch(93% 0.04 277);
+  --color-indigo-250: oklch(88% 0.08 277);
+  --color-indigo-650: oklch(48% 0.2 277);
+  --color-indigo-850: oklch(35% 0.18 277);
+  --color-neutral-150: oklch(94% 0.002 264);
+  --color-neutral-350: oklch(72% 0.01 264);
+  --color-neutral-750: oklch(38% 0.012 264);
+  --color-neutral-850: oklch(28% 0.012 264);
+  --color-neutral-955: oklch(16% 0.008 264);
+  --color-emerald-650: oklch(46% 0.14 160);
+  --color-amber-150: oklch(94% 0.04 75);
+  --color-sky-850: oklch(42% 0.12 230);
+}
+
+/* Print utilities and customized scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.2);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.4);
+}
+
+/* Custom smooth horizontal scrollbar style for the 12 Palaces Board */
+.chart-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.4) transparent;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto; /* Required for high-performance immediate mouse-dragging */
+  scroll-snap-type: x proximity;
+}
+
+.chart-scroll-container .chart-board-snap {
+  scroll-snap-align: center;
+}
+
+@media (max-width: 639px) {
+  .chart-palace-cell {
+    font-size: 0.625rem;
+  }
+  .chart-palace-cell .chart-star-major {
+    font-size: 0.6875rem;
+  }
+}
+
+.chart-scroll-container::-webkit-scrollbar {
+  height: 9px; /* Slightly taller scrollbar for horizontal scrolling to make it extremely easy to click and slide */
+}
+
+.chart-scroll-container::-webkit-scrollbar-track {
+  background: rgba(139, 92, 246, 0.04);
+  border-radius: 999px;
+}
+
+.chart-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.35); /* Elegant indigo shade */
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+}
+
+.chart-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.7); /* Bright highlighted active state */
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Custom breathing guide animation */
+@keyframes inhaleExhale {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1.15);
+    opacity: 0.9;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 0.9;
+  }
+}
+
+.animate-breath {
+  animation: inhaleExhale 10s ease-in-out infinite;
+}
+
+/* Markdown AI — màn hình (luận giải + hỏi đáp) */
+.markdown-body.chat-markdown {
+  line-height: 1.65;
+}
+
+.markdown-body.chat-markdown p {
+  margin-top: 0;
+  margin-bottom: 0.65em;
+}
+
+.markdown-body.chat-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body.chat-markdown ul,
+.markdown-body.chat-markdown ol {
+  margin: 0.4em 0 0.65em;
+  padding-left: 1.15em;
+}
+
+.markdown-body.chat-markdown li {
+  margin-bottom: 0.35em;
+}
+
+.markdown-body.chat-markdown li::marker {
+  color: rgb(99 102 241);
+}
+
+.markdown-body.chat-markdown strong {
+  color: rgb(67 56 202);
+  font-weight: 700;
+}
+
+.dark .markdown-body.chat-markdown strong {
+  color: rgb(165 180 252);
+}
+
+.markdown-body.chat-markdown h2,
+.markdown-body.chat-markdown h3,
+.markdown-body.chat-markdown h4 {
+  margin-top: 0.85em;
+  margin-bottom: 0.4em;
+  font-weight: 800;
+  color: rgb(28 25 23);
+}
+
+.dark .markdown-body.chat-markdown h2,
+.dark .markdown-body.chat-markdown h3,
+.dark .markdown-body.chat-markdown h4 {
+  color: rgb(245 245 244);
+}
+
+/* Hỏi đáp: kết luận nổi + căn cứ thu gọn */
+.chat-answer-lead {
+  border-left: 3px solid rgb(16 185 129);
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: rgb(236 253 245 / 0.85);
+  padding: 0.55rem 0.7rem 0.6rem 0.65rem;
+}
+
+.dark .chat-answer-lead {
+  border-left-color: rgb(52 211 153);
+  background: rgb(6 78 59 / 0.28);
+}
+
+.chat-answer-lead-label {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(5 150 105);
+  margin-bottom: 0.25rem;
+}
+
+.dark .chat-answer-lead-label {
+  color: rgb(110 231 183);
+}
+
+.chat-answer-details-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: rgb(99 102 241);
+  user-select: none;
+  padding: 0.15rem 0;
+}
+
+.chat-answer-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.dark .chat-answer-details-summary {
+  color: rgb(165 180 252);
+}
+
+.chat-answer-details-body {
+  margin-top: 0.45rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed rgb(214 211 209 / 0.9);
+  font-size: 0.92em;
+  opacity: 0.95;
+}
+
+.dark .chat-answer-details-body {
+  border-top-color: rgb(64 64 64 / 0.9);
+}
+
+/* Luận giải chính — rhythm đọc thoải mái (view thường, không cần Zen) */
+.markdown-body.reading-rhythm {
+  max-width: 65ch;
+  margin-left: auto;
+  margin-right: auto;
+  font-family: var(--font-serif);
+  line-height: 1.75;
+  font-size: 0.9375rem;
+}
+
+@media (min-width: 640px) {
+  .markdown-body.reading-rhythm {
+    font-size: 1rem;
+  }
+}
+
+.markdown-body.prose:not(.chat-markdown) p {
+  margin-bottom: 0.85em;
+}
+
+.markdown-body.prose:not(.chat-markdown) ul,
+.markdown-body.prose:not(.chat-markdown) ol {
+  margin: 0.5em 0 0.85em;
+  padding-left: 1.25em;
+}
+
+.markdown-body.prose:not(.chat-markdown) li {
+  margin-bottom: 0.4em;
+}
+
+.markdown-body.prose:not(.chat-markdown) strong {
+  color: rgb(79 70 229);
+  font-weight: 700;
+}
+
+.dark .markdown-body.prose:not(.chat-markdown) strong {
+  color: rgb(165 180 252);
+}
+
+/* @media print layouts for beautiful PDF exporting and printing */
+@media print {
+  /* Page size setup */
+  @page {
+    size: A4 portrait;
+    margin: 15mm 10mm 15mm 10mm;
+  }
+
+  /* Force light backgrounds & dark texts for print readability */
+  html, body {
+    background-color: #ffffff !important;
+    background-image: none !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Hide left form column, dynamic headers, zen toggles, footer, save profile buttons, sound loops, ambient bars */
+  header,
+  footer,
+  aside,
+  form,
+  button,
+  select,
+  input,
+  [role="tablist"],
+  .no-print,
+  .lg\:col-span-4,
+  .sticky,
+  .backdrop-blur-md,
+  /* Hide the "Thoát chế độ đọc" or reader navigation top-bar */
+  header.sticky,
+  header.sticky + div,
+  /* Sound loops and settings bars inside the zen reader */
+  div[class*="backdrop-blur"],
+  button[title],
+  .row-start-2.row-end-4 button {
+    display: none !important;
+  }
+
+  /* Make sure right content area occupies the entire print page */
+  main {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .lg\:col-span-8 {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  /* Force display of cards and remove absolute bounds */
+  .p-4, .p-6, .bg-white, .dark\:bg-neutral-900 {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: #e5e7eb !important;
+    box-shadow: none !important;
+  }
+
+  /* Avoid cutting off scrollable containers under print mode */
+  .overflow-y-auto,
+  .overflow-x-auto,
+  .max-h-\[700px\],
+  .max-h-\[300px\],
+  .scrollbar-none,
+  article,
+  div {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  /* Specific 12 Palaces Board adjustments for standard A4 page layout width */
+  .relative.p-2.bg-stone-100 {
+    border: 3px solid #000000 !important;
+    background-color: #ffffff !important;
+    border-radius: 8px !important;
+    padding: 2px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    max-width: 100% !important;
+  }
+
+  .min-w-\[900px\] {
+    min-width: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
+    gap: 2px !important;
+    background-color: #000000 !important;
+  }
+
+  /* Make sure small font layouts remain readable in gray scale under print */
+  .min-h-\[160px\] {
+    min-height: 110px !important;
+    background-color: #ffffff !important;
+    border-color: #000000 !important;
+    padding: 4px !important;
+    box-shadow: none !important;
+  }
+
+  /* Tweak text sizes slightly so that names fit grid boxes */
+  .text-\[11px\] {
+    font-size: 8pt !important;
+  }
+  .text-\[10px\] {
+    font-size: 7.5pt !important;
+  }
+  .text-\[9px\] {
+    font-size: 7pt !important;
+  }
+  .text-xs {
+    font-size: 8.5pt !important;
+  }
+
+  /* Force black for primary indicators under print */
+  .text-red-600, .dark\:text-red-400, .text-rose-700, .dark\:text-rose-400 {
+    color: #b91c1c !important; /* Deep recognizable red for stars */
+  }
+  .text-emerald-700, .dark\:text-emerald-400 {
+    color: #047857 !important; /* Deep recognizable green for auxiliary stars */
+  }
+  .text-\[\#d25c14\], .dark\:text-amber-400 {
+    color: #ea580c !important; /* Deep recognizable amber/orange for Sao Luu */
+  }
+
+  /* Central Information Block */
+  .row-start-2.row-end-4.col-start-2.col-end-4.p-4.bg-stone-50 {
+    background-color: #ffffff !important;
+    border: 4px double #000500 !important;
+    border-radius: 8px !important;
+  }
+
+  /* Page break before reading/interpretation sớ mệnh section */
+  .space-y-4 > .border-stone-200,
+  .markdown-body,
+  .space-y-4 > .border {
+    page-break-before: always !important;
+    break-before: page !important;
+    margin-top: 20mm !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Prose typography styling for print */
+  .prose {
+    color: #000000 !important;
+    font-family: "Lora", "Merriweather", Georgia, serif !important;
+    font-size: 11.5pt !important;
+    line-height: 1.8 !important;
+    max-width: 100% !important;
+  }
+
+  .prose h1, .prose h2, .prose h3, .prose h4, .prose h5 {
+    color: #000000 !important;
+    font-family: "Playfair Display", serif !important;
+    font-weight: 800 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    margin-top: 1.5em !important;
+    margin-bottom: 0.5em !important;
+  }
+
+  /* Ensure bullet points and lists match print style margins */
+  .prose ul, .prose ol {
+    padding-left: 20px !important;
+  }
+
+  .prose li {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 0.3em !important;
+  }
+
+  .prose p {
+    margin-bottom: 1em !important;
+  }
+
+  .chat-answer-details-summary {
+    display: none !important;
+  }
+
+  .chat-answer-details-body {
+    display: block !important;
+    border-top: none !important;
+    margin-top: 0.5em !important;
+    padding-top: 0 !important;
+  }
+
+  /* Custom cover-header for the sớ mệnh document under print mode */
+  .print-only-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 30px;
+    border-bottom: 1px dashed #000000;
+    padding-bottom: 15px;
+  }
+}
+
+/* Screen hidden elements that are strictly for print */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+
+/* Tôn trọng Reduce Motion: tắt animation/transition trang trí.
+   Chỉ spinner loading có chủ đích (.ai-loading-spin / .ai-loading-ring) được miễn. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .ai-loading-ring,
+  .ai-loading-spin {
+    animation: spin 0.8s linear infinite !important;
+    animation-duration: 0.8s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* Loading AI có chủ đích — luôn xoay (kể cả Reduce Motion). */
+.ai-loading-ring,
+.ai-loading-spin {
+  animation: spin 0.8s linear infinite;
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Lá Số Tử Vi và Luận Giải AI",
+  "description": "Ứng dụng lập lá số Tử Vi Đẩu Số chuẩn xác theo giờ TuviGLOBAL, hiệu chỉnh múi giờ lịch sử Việt Nam và luận giải chi tiết bằng công nghệ Trí tuệ Nhân tạo AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
