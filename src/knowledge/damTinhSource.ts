@@ -7,10 +7,46 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { DAM_TINH, DAM_TINH_AUX } from "./damTinh";
 
-const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+function resolveModuleDir(): string {
+  try {
+    const u = typeof import.meta !== "undefined" ? (import.meta as { url?: string }).url : "";
+    if (u && String(u).startsWith("file:")) {
+      return path.dirname(fileURLToPath(u));
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof __dirname !== "undefined" && __dirname) return __dirname;
+  } catch {
+    /* ignore */
+  }
+  return process.cwd();
+}
+
+const MODULE_DIR = resolveModuleDir();
+
+function resolveDamTinhSourcePath(): string {
+  const name = "vuongdinhchidamtinh.txt";
+  const candidates = [
+    path.join(process.cwd(), "src", "knowledge", "data", name),
+    path.join(process.cwd(), "dist", "knowledge-data", name),
+    path.join(MODULE_DIR, "data", name),
+    path.join(MODULE_DIR, "knowledge-data", name),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {
+      /* continue */
+    }
+  }
+  return path.join(process.cwd(), "src", "knowledge", "data", name);
+}
 
 /** Đường dẫn tuyệt đối tới file nguồn trên đĩa (server-only). */
-export const DAM_TINH_SOURCE_PATH = path.join(MODULE_DIR, "data", "vuongdinhchidamtinh.txt");
+export const DAM_TINH_SOURCE_PATH = resolveDamTinhSourcePath();
 
 /** Đường dẫn tương đối từ root repo — dùng ghi chú/tài liệu. */
 export const DAM_TINH_SOURCE_RELATIVE = "src/knowledge/data/vuongdinhchidamtinh.txt";
@@ -25,6 +61,25 @@ const HAN_TO_SOURCE_HEADER: Record<string, string> = {
   巨門: "巨门",
   七殺: "七杀",
   破軍: "破军",
+  // Nhóm vòng trạng thái + tuế tiền/tướng tiền (bổ sung)
+  太歲: "太岁",
+  歲建: "岁建",
+  龍德: "龙德",
+  晦氣: "晦气",
+  貫索: "贯索",
+  青龍: "青龙",
+  將軍: "将军",
+  奏書: "奏书",
+  飛廉: "飞廉",
+  歲驛: "岁驿",
+  // Batch 2 — vòng Trường Sinh 12 + Tuế Phá/Phúc Đức (nguồn biên: Tân Biên 1956,
+  // han trỏ mục tương ứng của Vương Đình Chi để tra chéo nguồn)
+  長生: "长生",
+  臨官: "临官",
+  冠帶: "冠带",
+  絕: "绝",
+  養: "养",
+  歲破: "岁破",
 };
 
 /** 14 chính tinh — thứ tự xuất hiện trong phần «谈星». */

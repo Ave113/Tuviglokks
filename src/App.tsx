@@ -9,7 +9,6 @@ import {
   Users,
   Moon,
   FileCheck,
-  Info,
   Mail,
 } from "lucide-react";
 import {
@@ -22,6 +21,8 @@ import { formatToVietnameseDate } from "./utils/formatDate";
 import { HoroscopeChart } from "./components/HoroscopeChart";
 import { AIInterpreter } from "./components/AIInterpreter";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ThemeToggle } from "./components/ThemeToggle";
+import { buildInterpretPayload } from "./hooks/buildInterpretPayload";
 import { useAI } from "./hooks/useAI";
 import { useChart } from "./hooks/useChart";
 import { useProfiles } from "./hooks/useProfiles";
@@ -35,7 +36,7 @@ export default function App() {
   const handleSelectProfile = (p: SavedProfile) => {
     chart.applyProfileToForm(p);
     profiles.setActiveProfileId(p.id);
-    chart.triggerCalculation(
+    const calculated = chart.triggerCalculation(
       p.name,
       p.solarDate,
       p.solarTime,
@@ -43,9 +44,22 @@ export default function App() {
       p.gender,
       p.originalTimezoneOffset ?? 7,
     );
-    ai.restoreFromSaved(p.savedInterpretation);
-    if (typeof p.savedInterpretation?.transitYear === "number") {
-      chart.setTransitYear(p.savedInterpretation.transitYear);
+    const savedTy = p.savedInterpretation?.transitYear;
+    if (typeof savedTy === "number") {
+      chart.setTransitYear(savedTy);
+    }
+    // Hồ sơ cũ thiếu chartData: rebuild từ lá vừa an để chat không 400.
+    const fallbackChartData =
+      !p.savedInterpretation?.chartData && calculated && p.savedInterpretation?.content
+        ? buildInterpretPayload(
+            calculated,
+            typeof savedTy === "number" ? savedTy : chart.transitYear,
+          )
+        : null;
+    ai.restoreFromSaved(p.savedInterpretation, fallbackChartData);
+    // Bền hóa chartData đã rebuild — truyền p.id vì setActiveProfileId chưa flush.
+    if (fallbackChartData && p.savedInterpretation?.content) {
+      profiles.persistInterpretationToProfile({ chartData: fallbackChartData }, p.id);
     }
   };
 
@@ -62,44 +76,53 @@ export default function App() {
       modelUsedResult: ai.modelUsedResult,
       transitYear: chart.transitYear,
       chatTurns: ai.chatTurns,
+      chartData: ai.lastChartPayload,
     });
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-neutral-950 text-stone-900 dark:text-neutral-150 font-sans antialiased pb-20">
+    <div className="min-h-screen bg-stone-50 dark:bg-neutral-950 text-stone-900 dark:text-neutral-150 font-sans antialiased tracking-tight pb-20">
 
       {/* Decorative Navigation Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-stone-900/95 text-white border-b border-stone-850 p-4 scrollbar-none">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-amber-500 text-stone-950 p-2 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <Compass className="w-6 h-6 motion-safe:animate-spin-slow" />
+      <header className="sticky top-0 z-50 backdrop-blur-md bg-stone-900/95 text-white border-b border-stone-850 py-2 sm:py-2.5 px-3 sm:px-4 scrollbar-none">
+        <div className="max-w-7xl mx-auto flex flex-row items-center justify-between gap-2 md:gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-[0.5rem] overflow-hidden shrink-0 shadow-sm shadow-purple-950/50 bg-[#2a1540] leading-none">
+              <img
+                src="/app-icon-tight.png"
+                alt="Tử Vi Sao AI"
+                className="block w-full h-full object-cover object-center"
+                width={28}
+                height={28}
+                draggable={false}
+              />
             </div>
             <div>
-              <h1 className="text-lg font-black tracking-wider flex items-center gap-2">
-                TỬ VI SAO <span className="text-[10px] bg-red-600 px-1.5 py-0.5 rounded text-white tracking-widest font-bold">BẢN MỆNH AI</span>
+              <h1 className="font-title text-[13.5px] flex items-center gap-1.5 leading-snug tracking-wide">
+                TỬ VI SAO <span className="text-[8.5px] bg-red-600 px-1 py-0.5 rounded text-white tracking-wider font-bold font-sans">AI</span>
               </h1>
-              <p className="text-[10px] text-stone-400 font-medium">
-                Tính toán Lịch Học chính xác theo Giờ Chuẩn & Múi giờ Lịch sử VN • <span className="text-amber-400 font-bold tracking-wider font-mono">by khackhoa</span>
+              <p className="text-[9px] text-stone-400 font-medium tracking-normal leading-tight">
+                Giải mã điểm mù & Vận trình cuộc đời • <span className="text-amber-400 font-semibold tracking-wide">by khackhoa</span>
               </p>
             </div>
           </div>
 
-          <div className="flex gap-4 text-xs text-stone-300">
-            <p className="flex items-center gap-1.5">
-              <Moon className="w-4 h-4 text-amber-400 shrink-0" />
+          <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[10.5px] text-stone-300 shrink-0">
+            <p className="hidden md:flex items-center gap-1">
+              <Moon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               Độ chính xác thiên văn cao
             </p>
-            <p className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-indigo-400 shrink-0" />
+            <p className="hidden md:flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               Múi giờ Hà Nội (GMT+7)
             </p>
+            <ThemeToggle />
           </div>
         </div>
       </header>
 
       {/* Main Body */}
-      <main className="max-w-7xl mx-auto px-4 pt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 pt-4 sm:pt-8 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8">
 
         {/* Left column (Form & Saved Profiles): grid span 4 */}
         <div className="lg:col-span-4 space-y-6">
@@ -122,14 +145,13 @@ export default function App() {
 
           {/* Main birth inputs card */}
           <div className="bg-white dark:bg-neutral-900 p-6 rounded-2xl border border-stone-250 dark:border-neutral-800 shadow-lg space-y-5">
-            <div className="border-b border-stone-200 dark:border-neutral-800 pb-3">
-              <h2 className="text-base font-extrabold tracking-tight text-stone-900 dark:text-white flex items-center gap-2">
-                <Compass className="w-4.5 h-4.5 text-indigo-600" />
-                Thiết Lập Thông Tin Sinh Mệnh
+            <div className="border-b border-stone-200/80 dark:border-neutral-800/80 pb-3.5">
+              <h2 className="font-title text-base text-stone-900 dark:text-white flex items-center gap-2.5 font-bold tracking-tight">
+                <span className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/50 flex items-center justify-center shadow-xs">
+                  <Compass className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                </span>
+                <span>Thiết Lập Thông Tin</span>
               </h2>
-              <p className="text-[11px] text-stone-400 mt-1">
-                Vui lòng cung cấp giờ sinh dương lịch. Thuật toán sẽ tự căn chỉnh múi giờ lịch sử Việt Nam chuẩn xác.
-              </p>
             </div>
 
             <form onSubmit={chart.handleCalculateClick} className="space-y-4">
@@ -287,19 +309,21 @@ export default function App() {
               {/* Submit calculations button */}
               <button
                 type="submit"
-                className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold p-3.5 rounded-xl text-sm transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 border border-stone-800 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+                className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold p-3.5 rounded-xl text-sm transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2 border border-stone-800 dark:bg-neutral-800 dark:hover:bg-neutral-700"
               >
                 <Compass className="w-4 h-4 text-amber-500 motion-safe:animate-spin-slow" />
-                Thắp Sao Lập Lá Số
+                An Sao Lập Lá Số
               </button>
             </form>
           </div>
 
           {/* Stored user profile manager */}
           <div className="bg-white dark:bg-neutral-900 p-6 rounded-2xl border border-stone-250 dark:border-neutral-800 shadow-md space-y-4">
-            <h3 className="text-sm font-extrabold tracking-tight text-stone-900 dark:text-white flex items-center gap-2 border-b border-stone-200 dark:border-neutral-800 pb-2">
-              <Users className="w-4.5 h-4.5 text-indigo-650" />
-              Sổ Tay Hồ Sơ Bản Mệnh ({profiles.savedProfiles.length})
+            <h3 className="font-title text-sm text-stone-900 dark:text-white flex items-center gap-2.5 border-b border-stone-200/80 dark:border-neutral-800/80 pb-2.5 font-bold tracking-tight">
+              <span className="p-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/50 flex items-center justify-center shadow-xs">
+                <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              </span>
+              <span>Sổ Tay Hồ Sơ ({profiles.savedProfiles.length})</span>
             </h3>
 
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
@@ -334,17 +358,9 @@ export default function App() {
                 <div className="p-8 text-center text-stone-400 space-y-1">
                   <Users className="w-6 h-6 mx-auto text-stone-300" />
                   <p className="text-xs font-medium">Chưa có hồ sơ nào được lưu</p>
-                  <p className="text-[10px]">Cung cấp thông tin sinh, thắp sao lập lá số, sau đó ấn "Lưu Hồ Sơ Nhân Vật" để ghi nhớ.</p>
+                  <p className="text-[10px]">Nhập thông tin sinh, an sao lập lá số, rồi bấm &quot;Lưu Hồ Sơ&quot; để ghi nhớ.</p>
                 </div>
               )}
-            </div>
-
-            {/* General instruction helper */}
-            <div className="text-[10px] text-stone-400 leading-normal p-2.5 bg-stone-50 dark:bg-neutral-950 rounded-lg border border-stone-200 dark:border-neutral-800 flex items-start gap-1.5">
-              <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-              <p>
-                <strong>Tử Vi Sao</strong> là khoa lập pháp nghiên cứu chu kỳ tinh tú. Giờ sinh âm lịch được quy chuẩn thống nhất theo Hệ thống Giờ Tiêu chuẩn Đông Phương.
-              </p>
             </div>
           </div>
 
@@ -360,13 +376,15 @@ export default function App() {
               <div id="chart-section" className="space-y-2 text-left scroll-mt-24">
                 <div className="flex justify-between items-center px-1">
                   <div>
-                    <h2 className="text-lg font-black tracking-tight text-neutral-900 dark:text-white flex items-center gap-1.5">
-                      <FileCheck className="w-5 h-5 text-indigo-650" />
-                      Lá Số Tử Vi Thiên Bàn
+                    <h2 className="font-title text-lg text-neutral-900 dark:text-white flex items-center gap-2.5 font-bold tracking-tight">
+                      <span className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/50 flex items-center justify-center shadow-xs">
+                        <FileCheck className="w-4.5 h-4.5 text-indigo-600 dark:text-indigo-400" />
+                      </span>
+                      <span>Lá Số Tử Vi Thiên Bàn</span>
                     </h2>
                   </div>
 
-                  <span className="text-xs bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400 px-3 py-1 rounded-full font-bold">
+                  <span className="text-xs bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full font-bold border border-indigo-200/50 dark:border-indigo-800/50 shadow-2xs">
                     Khung Trục Mệnh
                   </span>
                 </div>
@@ -399,11 +417,12 @@ export default function App() {
                 modelSelection={ai.modelSelection}
                 setModelSelection={ai.setModelSelection}
                 retryCountdown={ai.retryCountdown}
-                modelUsedResult={ai.modelUsedResult}
                 fallbackUsedResult={ai.fallbackUsedResult}
                 starAuditWarning={ai.starAuditWarning}
                 starHallucinated={ai.starHallucinated}
                 starAuditRetried={ai.starAuditRetried}
+                truncated={ai.truncated}
+                structureIssues={ai.structureIssues}
                 chatTurns={ai.chatTurns}
                 chatLoading={ai.chatLoading}
                 chatError={ai.chatError}
@@ -418,9 +437,9 @@ export default function App() {
             <div className="p-20 text-center text-stone-400 space-y-4 bg-white dark:bg-neutral-900 rounded-3xl border border-stone-200 dark:border-neutral-800">
               <Compass className="w-12 h-12 mx-auto text-indigo-600 motion-safe:animate-spin-slow" />
               <div className="space-y-1 max-w-sm mx-auto">
-                <p className="font-bold text-stone-800 dark:text-neutral-200 text-sm">Chưa có thông tin thiên bàn lập tinh</p>
+                <p className="font-bold text-stone-800 dark:text-neutral-200 text-sm">Chưa có thiên bàn — hãy an lá số</p>
                 <p className="text-xs">
-                  Điền đầy đủ ngày giờ sinh, giới tính và nơi sinh ở cột bên trái rồi ấn <strong>"Thắp Sao Lập Lá Số"</strong> để tiến hành kết xuất lá số mạng vận chi tiết.
+                  Điền đầy đủ ngày giờ sinh, giới tính và nơi sinh ở cột bên trái, rồi bấm <strong>&quot;An Sao Lập Lá Số&quot;</strong> để dựng 12 cung và sao.
                 </p>
               </div>
             </div>
@@ -443,11 +462,11 @@ export default function App() {
             </p>
             <a
               href="mailto:khackhoachau@gmail.com"
-              className="inline-flex items-center gap-1.5 text-[11px] text-stone-400 dark:text-neutral-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+              className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-stone-700 dark:text-neutral-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
             >
-              <Mail className="w-3 h-3 shrink-0 opacity-70" />
-              <span>contact:</span>
-              <span className="font-mono">khackhoachau@gmail.com</span>
+              <Mail className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
+              <span className="font-bold">contact:</span>
+              <span className="font-mono font-extrabold tracking-wide">khackhoachau@gmail.com</span>
             </a>
           </div>
         </div>

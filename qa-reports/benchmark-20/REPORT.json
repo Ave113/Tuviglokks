@@ -1,0 +1,1113 @@
+{
+  "generatedAt": "2026-10-10T05:46:44.689Z",
+  "withAi": false,
+  "disclaimer": "Điểm pipeline/skeleton ≠ phần trăm đúng cuộc đời. Chỉ đo an lá + sẵn sàng luận + (tuỳ) coverage bài AI.",
+  "totals": {
+    "charts": 20,
+    "pipelineOk": 20,
+    "avgScore": 100,
+    "hourMatch": 20
+  },
+  "rows": [
+    {
+      "id": "B01",
+      "label": "Nữ 1988-03-12 22:45 Bắc",
+      "hourExpected": "Hợi",
+      "hourActual": "Hợi",
+      "hourOk": true,
+      "card": {
+        "chartId": "B01",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Mậu",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (224 ch)",
+              "✓ tinhVaDap (2040 ch)",
+              "✓ cachCuc (9862 ch)",
+              "✓ haiTrucTai (668 ch)",
+              "✓ luuNien event cards (2644 ch)",
+              "✓ baZi cross tags (1724 ch)",
+              "✓ kinhNghiem (6236 ch)",
+              "✓ giaiHoa (2954 ch)",
+              "✓ book/tinhHoa (7645 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1483 ch)",
+              "✓ tuHoa tu/phi 12 cung (2313 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B02",
+      "label": "Nam 2001-07-08 05:15 Nam",
+      "hourExpected": "Mão",
+      "hourActual": "Mão",
+      "hourOk": true,
+      "card": {
+        "chartId": "B02",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Tân",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (228 ch)",
+              "✓ tinhVaDap (2491 ch)",
+              "✓ cachCuc (10644 ch)",
+              "✓ haiTrucTai (776 ch)",
+              "✓ luuNien event cards (2648 ch)",
+              "✓ baZi cross tags (1756 ch)",
+              "✓ kinhNghiem (6160 ch)",
+              "✓ giaiHoa (2954 ch)",
+              "✓ book/tinhHoa (7558 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1463 ch)",
+              "✓ tuHoa tu/phi 12 cung (2311 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B03",
+      "label": "Nam 2009-06-09 23:05 Trung QT vào",
+      "hourExpected": "Tý",
+      "hourActual": "Tý",
+      "hourOk": true,
+      "card": {
+        "chartId": "B03",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Kỷ",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (240 ch)",
+              "✓ tinhVaDap (2749 ch)",
+              "✓ cachCuc (7575 ch)",
+              "✓ haiTrucTai (815 ch)",
+              "✓ luuNien event cards (2650 ch)",
+              "✓ baZi cross tags (1780 ch)",
+              "✓ kinhNghiem (6085 ch)",
+              "✓ giaiHoa (3039 ch)",
+              "✓ book/tinhHoa (7394 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1493 ch)",
+              "✓ tuHoa tu/phi 12 cung (2302 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B04",
+      "label": "Nữ 2004-07-15 19:30 Trung QT vào",
+      "hourExpected": "Tuất",
+      "hourActual": "Tuất",
+      "hourOk": true,
+      "card": {
+        "chartId": "B04",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Giáp",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (237 ch)",
+              "✓ tinhVaDap (2329 ch)",
+              "✓ cachCuc (10629 ch)",
+              "✓ haiTrucTai (718 ch)",
+              "✓ luuNien event cards (2610 ch)",
+              "✓ baZi cross tags (1732 ch)",
+              "✓ kinhNghiem (6160 ch)",
+              "✓ giaiHoa (2954 ch)",
+              "✓ book/tinhHoa (7648 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1430 ch)",
+              "✓ tuHoa tu/phi 12 cung (2286 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B05",
+      "label": "Nữ 1980-11-19 02:45 Trung QT vào",
+      "hourExpected": "Sửu",
+      "hourActual": "Sửu",
+      "hourOk": true,
+      "card": {
+        "chartId": "B05",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Canh",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (237 ch)",
+              "✓ tinhVaDap (2201 ch)",
+              "✓ cachCuc (8142 ch)",
+              "✓ haiTrucTai (706 ch)",
+              "✓ luuNien event cards (2583 ch)",
+              "✓ baZi cross tags (1675 ch)",
+              "✓ kinhNghiem (6006 ch)",
+              "✓ giaiHoa (3039 ch)",
+              "✓ book/tinhHoa (7510 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1480 ch)",
+              "✓ tuHoa tu/phi 12 cung (2336 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B06",
+      "label": "Nam 2011-04-23 11:00 Nam",
+      "hourExpected": "Ngọ",
+      "hourActual": "Ngọ",
+      "hourOk": true,
+      "card": {
+        "chartId": "B06",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Tân",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (223 ch)",
+              "✓ tinhVaDap (2260 ch)",
+              "✓ cachCuc (9980 ch)",
+              "✓ haiTrucTai (556 ch)",
+              "✓ luuNien event cards (2646 ch)",
+              "✓ baZi cross tags (1768 ch)",
+              "✓ kinhNghiem (6003 ch)",
+              "✓ giaiHoa (2954 ch)",
+              "✓ book/tinhHoa (7512 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1475 ch)",
+              "✓ tuHoa tu/phi 12 cung (2294 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B07",
+      "label": "Nữ 1996-01-02 18:15 Nam",
+      "hourExpected": "Dậu",
+      "hourActual": "Dậu",
+      "hourOk": true,
+      "card": {
+        "chartId": "B07",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Ất",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (210 ch)",
+              "✓ tinhVaDap (2344 ch)",
+              "✓ cachCuc (10197 ch)",
+              "✓ haiTrucTai (640 ch)",
+              "✓ luuNien event cards (2603 ch)",
+              "✓ baZi cross tags (1706 ch)",
+              "✓ kinhNghiem (6160 ch)",
+              "✓ giaiHoa (2954 ch)",
+              "✓ book/tinhHoa (7579 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1501 ch)",
+              "✓ tuHoa tu/phi 12 cung (2292 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B08",
+      "label": "Nam 2023-08-05 04:45 Bắc",
+      "hourExpected": "Dần",
+      "hourActual": "Dần",
+      "hourOk": true,
+      "card": {
+        "chartId": "B08",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Quý",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (199 ch)",
+              "✓ tinhVaDap (2115 ch)",
+              "✓ cachCuc (9855 ch)",
+              "✓ haiTrucTai (803 ch)",
+              "✓ luuNien event cards (2604 ch)",
+              "✓ baZi cross tags (1544 ch)",
+              "✓ kinhNghiem (6006 ch)",
+              "✓ giaiHoa (2905 ch)",
+              "✓ book/tinhHoa (7665 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1469 ch)",
+              "✓ tuHoa tu/phi 12 cung (2313 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B09",
+      "label": "Nam 1975-09-02 08:20 Bắc",
+      "hourExpected": "Thìn",
+      "hourActual": "Thìn",
+      "hourOk": true,
+      "card": {
+        "chartId": "B09",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Ất",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (222 ch)",
+              "✓ tinhVaDap (2277 ch)",
+              "✓ cachCuc (7360 ch)",
+              "✓ haiTrucTai (705 ch)",
+              "✓ luuNien event cards (2555 ch)",
+              "✓ baZi cross tags (1701 ch)",
+              "✓ kinhNghiem (6085 ch)",
+              "✓ giaiHoa (3039 ch)",
+              "✓ book/tinhHoa (7591 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1497 ch)",
+              "✓ tuHoa tu/phi 12 cung (2326 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B10",
+      "label": "Nữ 1990-12-25 14:00 Nam",
+      "hourExpected": "Mùi",
+      "hourActual": "Mùi",
+      "hourOk": true,
+      "card": {
+        "chartId": "B10",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Canh",
+              "năm xem 2027"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (211 ch)",
+              "✓ tinhVaDap (2030 ch)",
+              "✓ cachCuc (9846 ch)",
+              "✓ haiTrucTai (740 ch)",
+              "✓ luuNien event cards (2644 ch)",
+              "✓ baZi cross tags (1779 ch)",
+              "✓ kinhNghiem (6097 ch)",
+              "✓ giaiHoa (2954 ch)",
+              "✓ book/tinhHoa (7621 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1464 ch)",
+              "✓ tuHoa tu/phi 12 cung (2306 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B11",
+      "label": "Nam 1985-05-01 16:40 Trung QT ra",
+      "hourExpected": "Thân",
+      "hourActual": "Thân",
+      "hourOk": true,
+      "card": {
+        "chartId": "B11",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Ất",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (230 ch)",
+              "✓ tinhVaDap (2186 ch)",
+              "✓ cachCuc (7584 ch)",
+              "✓ haiTrucTai (720 ch)",
+              "✓ luuNien event cards (2646 ch)",
+              "✓ baZi cross tags (1688 ch)",
+              "✓ kinhNghiem (5998 ch)",
+              "✓ giaiHoa (3039 ch)",
+              "✓ book/tinhHoa (7670 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1479 ch)",
+              "✓ tuHoa tu/phi 12 cung (2339 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B12",
+      "label": "Nữ 2000-02-29 00:30 Nam (năm nhuận)",
+      "hourExpected": "Tý",
+      "hourActual": "Tý",
+      "hourOk": true,
+      "card": {
+        "chartId": "B12",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Canh",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (220 ch)",
+              "✓ tinhVaDap (2040 ch)",
+              "✓ cachCuc (10469 ch)",
+              "✓ haiTrucTai (889 ch)",
+              "✓ luuNien event cards (2613 ch)",
+              "✓ baZi cross tags (1749 ch)",
+              "✓ kinhNghiem (6105 ch)",
+              "✓ giaiHoa (2972 ch)",
+              "✓ book/tinhHoa (7510 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1467 ch)",
+              "✓ tuHoa tu/phi 12 cung (2272 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B13",
+      "label": "Nam 1999-10-10 21:10 Overseas",
+      "hourExpected": "Hợi",
+      "hourActual": "Hợi",
+      "hourOk": true,
+      "card": {
+        "chartId": "B13",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Kỷ",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (242 ch)",
+              "✓ tinhVaDap (2073 ch)",
+              "✓ cachCuc (9497 ch)",
+              "✓ haiTrucTai (667 ch)",
+              "✓ luuNien event cards (2617 ch)",
+              "✓ baZi cross tags (1745 ch)",
+              "✓ kinhNghiem (6042 ch)",
+              "✓ giaiHoa (2905 ch)",
+              "✓ book/tinhHoa (7394 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1431 ch)",
+              "✓ tuHoa tu/phi 12 cung (2302 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B14",
+      "label": "Nữ 1972-06-18 09:55 Bắc",
+      "hourExpected": "Tỵ",
+      "hourActual": "Tỵ",
+      "hourOk": true,
+      "card": {
+        "chartId": "B14",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Nhâm",
+              "năm xem 2025"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (258 ch)",
+              "✓ tinhVaDap (2290 ch)",
+              "✓ cachCuc (9811 ch)",
+              "✓ haiTrucTai (613 ch)",
+              "✓ luuNien event cards (2597 ch)",
+              "✓ baZi cross tags (1710 ch)",
+              "✓ kinhNghiem (6238 ch)",
+              "✓ giaiHoa (2904 ch)",
+              "✓ book/tinhHoa (7605 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1428 ch)",
+              "✓ tuHoa tu/phi 12 cung (2317 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B15",
+      "label": "Nam 2007-03-21 12:00 Trung QT vào",
+      "hourExpected": "Ngọ",
+      "hourActual": "Ngọ",
+      "hourOk": true,
+      "card": {
+        "chartId": "B15",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Đinh",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (205 ch)",
+              "✓ tinhVaDap (2250 ch)",
+              "✓ cachCuc (9952 ch)",
+              "✓ haiTrucTai (741 ch)",
+              "✓ luuNien event cards (2601 ch)",
+              "✓ baZi cross tags (1711 ch)",
+              "✓ kinhNghiem (6085 ch)",
+              "✓ giaiHoa (2905 ch)",
+              "✓ book/tinhHoa (7512 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1444 ch)",
+              "✓ tuHoa tu/phi 12 cung (2323 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B16",
+      "label": "Nữ 2015-11-11 06:06 Nam",
+      "hourExpected": "Mão",
+      "hourActual": "Mão",
+      "hourOk": true,
+      "card": {
+        "chartId": "B16",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Ất",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (220 ch)",
+              "✓ tinhVaDap (2187 ch)",
+              "✓ cachCuc (10888 ch)",
+              "✓ haiTrucTai (810 ch)",
+              "✓ luuNien event cards (2596 ch)",
+              "✓ baZi cross tags (1742 ch)",
+              "✓ kinhNghiem (6029 ch)",
+              "✓ giaiHoa (2972 ch)",
+              "✓ book/tinhHoa (7591 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1432 ch)",
+              "✓ tuHoa tu/phi 12 cung (2294 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B17",
+      "label": "Nam 1968-01-30 20:20 Bắc",
+      "hourExpected": "Tuất",
+      "hourActual": "Tuất",
+      "hourOk": true,
+      "card": {
+        "chartId": "B17",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Mậu",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (257 ch)",
+              "✓ tinhVaDap (2365 ch)",
+              "✓ cachCuc (10479 ch)",
+              "✓ haiTrucTai (737 ch)",
+              "✓ luuNien event cards (2608 ch)",
+              "✓ baZi cross tags (1706 ch)",
+              "✓ kinhNghiem (6042 ch)",
+              "✓ giaiHoa (2972 ch)",
+              "✓ book/tinhHoa (7592 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1443 ch)",
+              "✓ tuHoa tu/phi 12 cung (2306 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B18",
+      "label": "Nữ 1993-08-08 15:30 Trung QT ra",
+      "hourExpected": "Thân",
+      "hourActual": "Thân",
+      "hourOk": true,
+      "card": {
+        "chartId": "B18",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Quý",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (206 ch)",
+              "✓ tinhVaDap (2243 ch)",
+              "✓ cachCuc (10622 ch)",
+              "✓ haiTrucTai (852 ch)",
+              "✓ luuNien event cards (2678 ch)",
+              "✓ baZi cross tags (1785 ch)",
+              "✓ kinhNghiem (6116 ch)",
+              "✓ giaiHoa (2972 ch)",
+              "✓ book/tinhHoa (7621 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1443 ch)",
+              "✓ tuHoa tu/phi 12 cung (2287 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B19",
+      "label": "Nam 2002-04-04 03:33 Nam",
+      "hourExpected": "Dần",
+      "hourActual": "Dần",
+      "hourOk": true,
+      "card": {
+        "chartId": "B19",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Nhâm",
+              "năm xem 2028"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (261 ch)",
+              "✓ tinhVaDap (1933 ch)",
+              "✓ cachCuc (10363 ch)",
+              "✓ haiTrucTai (691 ch)",
+              "✓ luuNien event cards (2666 ch)",
+              "✓ baZi cross tags (1764 ch)",
+              "✓ kinhNghiem (6041 ch)",
+              "✓ giaiHoa (2972 ch)",
+              "✓ book/tinhHoa (7512 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1482 ch)",
+              "✓ tuHoa tu/phi 12 cung (2297 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    },
+    {
+      "id": "B20",
+      "label": "Nữ 1987-07-07 13:13 Overseas",
+      "hourExpected": "Mùi",
+      "hourActual": "Mùi",
+      "hourOk": true,
+      "card": {
+        "chartId": "B20",
+        "layers": [
+          {
+            "name": "chart_health",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "12 cung",
+              "có Mệnh",
+              "chính tinh count≈14",
+              "can năm Đinh",
+              "năm xem 2026"
+            ]
+          },
+          {
+            "name": "prompt_readiness",
+            "score": 100,
+            "max": 100,
+            "details": [
+              "✓ natalTuHoa / damTinh (9305 ch)",
+              "✓ stress sát/kỵ (205 ch)",
+              "✓ tinhVaDap (2214 ch)",
+              "✓ cachCuc (7972 ch)",
+              "✓ haiTrucTai (781 ch)",
+              "✓ luuNien event cards (2666 ch)",
+              "✓ baZi cross tags (1765 ch)",
+              "✓ kinhNghiem (6042 ch)",
+              "✓ giaiHoa (3039 ch)",
+              "✓ book/tinhHoa (7600 ch)",
+              "✓ cabinet directive (810 ch)",
+              "✓ tuanTriet (1504 ch)",
+              "✓ tuHoa tu/phi 12 cung (2278 ch)"
+            ]
+          },
+          {
+            "name": "ai_text",
+            "score": 0,
+            "max": 100,
+            "details": [
+              "(skip — chưa có bài luận AI)"
+            ]
+          }
+        ],
+        "total": 100,
+        "pipelineOk": true,
+        "aiOk": null
+      }
+    }
+  ]
+}

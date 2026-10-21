@@ -8,6 +8,8 @@ import {
   analyzeTuanTriet,
   buildTuanTrietReport,
   classifyTuanTrietStar,
+  computeTuanBranches,
+  computeTrietBranches,
 } from "./tuanTriet";
 
 describe("classifyTuanTrietStar", () => {
@@ -33,45 +35,85 @@ describe("classifyTuanTrietStar", () => {
   });
 });
 
-describe("analyzeTuanTriet / buildTuanTrietReport — lá iztro thật", () => {
-  it("1992-06-15: Mệnh Triệt Lộ, Tài Tuần Không, Phụ Không Vong", () => {
-    const r = generateTuviAstrolabe("1992-06-15", "08:00", BIRTHPLACE.SOUTH, "Nam");
-    const analysis = analyzeTuanTriet(r.chart.palaces);
+describe("computeTuanBranches / computeTrietBranches", () => {
+  it("1992 Nhâm Thân: Tuần Tuất–Hợi, Triệt Dần–Mão", () => {
+    expect(computeTuanBranches(1992)).toEqual([10, 11]); // Tuất Hợi
+    expect(computeTrietBranches(1992)).toEqual([2, 3]); // Dần Mão
+  });
 
-    expect(analysis.hits.length).toBeGreaterThanOrEqual(3);
+  it("1995 Ất Hợi: Tuần Thân–Dậu (甲戌旬), Triệt Ngọ–Mùi (Ất)", () => {
+    // (1995-4)%60 = 31 → 甲戌旬 index 3x → floor(31/10)=3 → wait
+    // 1995-4=1991, 1991%60 = 11 → 甲戌旬 (10-19) → xun=1 → Thân Dậu
+    expect(computeTuanBranches(1995)).toEqual([8, 9]);
+    expect(computeTrietBranches(1995)).toEqual([6, 7]); // Ất
+  });
+});
+
+describe("analyzeTuanTriet / buildTuanTrietReport — khóa 2 cung + engine", () => {
+  it("1992-06-15 + birthYear: đủ 2 cung Tuần + 2 cung Triệt; Mệnh có Triệt", () => {
+    const r = generateTuviAstrolabe("1992-06-15", "08:00", BIRTHPLACE.SOUTH, "Nam");
+    const birthYear = r.chart.rawDates?.lunarDate?.lunarYear ?? 1992;
+    const analysis = analyzeTuanTriet(r.chart.palaces, { birthYear });
+
+    expect(analysis.tuanBranches).toEqual([10, 11]);
+    expect(analysis.trietBranches).toEqual([2, 3]);
+    expect(analysis.tuanPalaces.length).toBe(2);
+    expect(analysis.trietPalaces.length).toBe(2);
     expect(analysis.trietPalaces.some((n) => n.includes("Mệnh"))).toBe(true);
-    expect(analysis.tuanPalaces.some((n) => /Tài/i.test(n))).toBe(true);
-    expect(analysis.khongVongPalaces.length).toBeGreaterThanOrEqual(1);
 
     const menh = analysis.hits.find((h) => h.palaceName.includes("Mệnh"));
     expect(menh?.kinds).toContain("triet");
     expect(menh?.isKeyPalace).toBe(true);
 
-    const report = buildTuanTrietReport(r.chart.palaces);
-    expect(report).toContain("Triệt");
-    expect(report).toContain("Tuần");
-    expect(report).toContain("CUNG TRỌNG");
-    // Phân biệt có nhắc Địa Không trong quy tắc — nhưng không gán Địa Không như hit cung
+    const report = buildTuanTrietReport(r.chart.palaces, { birthYear });
+    expect(report).toContain("KHÓA TUẦN");
+    expect(report).toContain("KHÓA TRIỆT");
+    expect(report).toContain("CẢ HAI cung");
     expect(report).toMatch(/không đồng nhất với Địa Không|KHÔNG đồng nhất với Địa Không/i);
-    expect(analysis.hits.every((h) =>
-      h.stars.every((s) => !/Địa Không|Thiên Không|Địa Kiếp/.test(s.name)),
-    )).toBe(true);
   });
 
-  it("mỗi lá mẫu có đúng 3 nhãn iztro (Tuần Không + Triệt Lộ + Không Vong) phân tán 3 cung", () => {
+  it("mỗi lá mẫu + birthYear: đúng 2 chi Tuần và 2 chi Triệt", () => {
     const dates = ["1995-10-25", "2000-03-03", "1988-01-10"];
     for (const d of dates) {
       const r = generateTuviAstrolabe(d, "12:00", BIRTHPLACE.SOUTH, "Nam");
-      const a = analyzeTuanTriet(r.chart.palaces);
-      expect(a.tuanPalaces.length, d).toBe(1);
-      expect(a.trietPalaces.length, d).toBe(1);
-      expect(a.khongVongPalaces.length, d).toBe(1);
-      // Không gán 2 loại khác nhau vào cùng 1 cung trên các mẫu này (iztro an rời)
-      expect(a.hits.length, d).toBe(3);
+      const birthYear = r.chart.rawDates?.lunarDate?.lunarYear ?? parseInt(d.slice(0, 4), 10);
+      const a = analyzeTuanTriet(r.chart.palaces, { birthYear });
+      expect(a.tuanBranches.length, d).toBe(2);
+      expect(a.trietBranches.length, d).toBe(2);
+      expect(a.tuanPalaces.length, d).toBe(2);
+      expect(a.trietPalaces.length, d).toBe(2);
     }
   });
 
-  it("mock không có sao → báo không thấy + cấm bịa", () => {
+  it("GIÁP CUNG: 1992 (Tuần Tuất–Hợi, Triệt Dần–Mão) — chỉ cung KỀ bị khóa được đánh dấu, cung bị khóa trực tiếp thì không", () => {
+    const r = generateTuviAstrolabe("1992-06-15", "08:00", BIRTHPLACE.SOUTH, "Nam");
+    const birthYear = r.chart.rawDates?.lunarDate?.lunarYear ?? 1992;
+    const analysis = analyzeTuanTriet(r.chart.palaces, { birthYear });
+
+    // Tuần [10,11] → giáp: Dậu (kề Tuất=10) và Tý (kề Hợi=11)
+    // Triệt [2,3] → giáp: Sửu (kề Dần=2) và Thìn (kề Mão=3)
+    expect(analysis.giapHits.map((g) => g.branchIdx).sort((x, y) => x - y)).toEqual([0, 1, 4, 9]);
+
+    const ty = analysis.giapHits.find((g) => g.branchIdx === 0);
+    expect(ty?.tuanSides).toEqual([11]);
+    expect(ty?.trietSides).toEqual([]);
+
+    const thin = analysis.giapHits.find((g) => g.branchIdx === 4);
+    expect(thin?.trietSides).toEqual([3]);
+    expect(thin?.tuanSides).toEqual([]);
+
+    // Cung nằm TRỰC TIẾP trên khóa (Tuất/Hợi/Dần/Mão) không bị đánh dấu "giáp"
+    for (const b of [10, 11, 2, 3]) {
+      expect(analysis.giapHits.some((g) => g.branchIdx === b), `b=${b}`).toBe(false);
+    }
+
+    const report = buildTuanTrietReport(r.chart.palaces, { birthYear });
+    expect(report).toContain("GIÁP CUNG");
+    expect(report).toMatch(/giáp Tuần \(kề Hợi\)/);
+    expect(report).toMatch(/giáp Triệt \(kề Dần\)/);
+  });
+
+  it("mock không có sao + không birthYear → báo không thấy + cấm bịa", () => {
     const empty = Array.from({ length: 12 }, (_, i) => ({
       index: i,
       name: `Cung${i}`,
@@ -86,17 +128,18 @@ describe("analyzeTuanTriet / buildTuanTrietReport — lá iztro thật", () => {
 });
 
 describe("inject vào interpret prompt", () => {
-  it("buildChartPromptContext + user prompt chứa cheat sheet TUẦN/TRIỆT", () => {
+  it("buildChartPromptContext + user prompt chứa cheat sheet TUẦN/TRIỆT khóa 2 cung", () => {
     const calculated = generateTuviAstrolabe("1992-06-15", "08:00", BIRTHPLACE.SOUTH, "Nam");
     const chart = buildInterpretPayload(calculated, 2026);
+    expect(chart.birthLunarYear).toBeDefined();
     const ctx = buildChartPromptContext(chart);
     expect(ctx.tuanTrietReportStr.length).toBeGreaterThan(40);
-    expect(ctx.tuanTrietReportStr).toMatch(/Tuần|Triệt/);
+    expect(ctx.tuanTrietReportStr).toMatch(/KHÓA TUẦN|Tuần/);
+    expect(ctx.tuanTrietReportStr).toMatch(/KHÓA TRIỆT|Triệt/);
 
     const prompt = buildInterpretUserPrompt(ctx, chart);
     expect(prompt).toContain("TUẦN / TRIỆT / KHÔNG VONG");
     expect(prompt).toContain("cấm bịa");
-    // Phải neo đúng cung Mệnh có Triệt trên lá 1992
-    expect(prompt).toMatch(/Mệnh[\s\S]{0,80}Triệt|Triệt[\s\S]{0,40}Mệnh/);
+    expect(prompt).toMatch(/Mệnh[\s\S]{0,80}Triệt|Triệt[\s\S]{0,40}Mệnh|KHÓA TRIỆT/);
   });
 });

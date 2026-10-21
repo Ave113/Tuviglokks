@@ -14,6 +14,52 @@ export interface StarAuditResult {
 
 const NEGATION_BEFORE = /(?:không\s+có|không\s+hề|không\s+gặp|không\s+thấy|thiếu|vắng|chưa\s+có|không\s+đủ)\s*$/iu;
 
+/**
+ * Cụm thuật ngữ Bát Tự / Tử Bình — nếu match tên sao Tử Vi CHỒNG lên cụm này
+ * thì bỏ qua (không tính là nhắc sao trên thiên bàn).
+ *
+ * Case gốc: "vận Hỷ Dụng thần" bị catalog khớp "Vận Hỷ" dù ý là 喜用神.
+ * Không đưa "hỷ thần" đơn lẻ vào đây — trùng tên sao Bác Sỹ "Hỷ Thần".
+ */
+export const BAZI_PHRASE_IGNORELIST: readonly string[] = [
+  // Hỷ–Kỵ–Dụng (xung đột mạnh với Vận Hỷ / Hóa Kỵ / …)
+  "hỷ dụng thần",
+  "hỷ dụng",
+  "kỵ dụng thần",
+  "kỵ dụng",
+  "kỵ thần",
+  "dụng thần",
+  "hỷ thần kỵ thần",
+  // Khung phương pháp thường gặp trong luận chéo TV↔BT
+  "vượng nhược",
+  "thân vượng",
+  "thân nhược",
+  "nhật chủ",
+  "thập thần",
+  "tỷ kiếp",
+  "thực thương",
+  "thương quan",
+  "chính ấn",
+  "thiên ấn",
+  "chính quan",
+  "chính tài",
+  // Không đưa: Thất Sát / Thiên Tài / Thiên Quan — trùng tên sao Tử Vi trên catalog.
+  "nạp âm",
+  "phù ức",
+  "điều hậu",
+  "thông quan",
+  "đại vận",
+  "tiền vận",
+  "trung vận",
+  "hậu vận",
+];
+
+/**
+ * Hậu tố Bát Tự ngay SAU match catalog → bỏ qua.
+ * "…Hỷ" + " Dụng (thần)?" trong "vận Hỷ Dụng thần".
+ */
+const BAZI_AFTER_MATCH = /^\s*dụng(?:\s*thần)?(?=\s|$|[,.;:!?…\)\]"'»])/iu;
+
 function isLetter(ch: string): boolean {
   return /\p{L}/u.test(ch);
 }
@@ -29,6 +75,54 @@ function isNegatedMention(fullText: string, matchIndex: number): boolean {
   return NEGATION_BEFORE.test(window);
 }
 
+interface TextRange {
+  start: number;
+  end: number;
+}
+
+function rangesOverlap(a: TextRange, b: TextRange): boolean {
+  return a.start < b.end && b.start < a.end;
+}
+
+/** Vùng text thuộc cụm Bát Tự ignorelist (NFC lower). */
+export function findBaziPhraseRanges(
+  lowerText: string,
+  phrases: readonly string[] = BAZI_PHRASE_IGNORELIST,
+): TextRange[] {
+  const ranges: TextRange[] = [];
+  const lower = String(lowerText || "");
+  for (const raw of phrases) {
+    const needle = raw.normalize("NFC").toLowerCase().trim();
+    if (!needle) continue;
+    let idx = 0;
+    while ((idx = lower.indexOf(needle, idx)) !== -1) {
+      if (isWordBoundary(lower, idx, needle.length)) {
+        ranges.push({ start: idx, end: idx + needle.length });
+      }
+      idx += 1;
+    }
+  }
+  return ranges;
+}
+
+/**
+ * Match catalog có phải ngữ cảnh Bát Tự (ignore) không?
+ * — chồng vùng ignorelist, hoặc hậu tố " Dụng (thần)?".
+ */
+export function isBaziContextMatch(
+  lowerText: string,
+  matchStart: number,
+  matchLen: number,
+  baziRanges?: TextRange[],
+): boolean {
+  const match: TextRange = { start: matchStart, end: matchStart + matchLen };
+  const ranges = baziRanges ?? findBaziPhraseRanges(lowerText);
+  if (ranges.some((r) => rangesOverlap(match, r))) return true;
+  const after = lowerText.slice(match.end);
+  if (BAZI_AFTER_MATCH.test(after)) return true;
+  return false;
+}
+
 /**
  * Tên đầy đủ trên lá (tuvi sao lưu) ↔ tên viết tắt AI / catalog hay dùng.
  * Key: normalizeStarName sau strip [SAO LƯU] / ngoặc.
@@ -37,9 +131,12 @@ function isNegatedMention(fullText: string, matchIndex: number): boolean {
 const LUU_STAR_ALIASES: Record<string, string[]> = {
   // --- Lục sát / lộc mã lưu ---
   "lưu lộc tồn": ["Lưu Lộc"],
-  "lưu kình dương": ["Lưu Kình"],
+  "lưu kình dương": ["Lưu Kình", "Lưu Dương"],
   "lưu đà la": ["Lưu Đà"],
   "lưu thiên mã": ["Lưu Mã"],
+  "lưu khôi": ["Lưu Khôi", "Thiên Khôi"],
+  "lưu việt": ["Lưu Việt", "Thiên Việt"],
+  "niên giải": ["Niên Giải"],
   // --- Tuế / tang / hỉ ---
   "lưu thái tuế": ["Lưu Tuế", "Thái Tuế"],
   "lưu tang môn": ["Lưu Tang"],
@@ -51,11 +148,27 @@ const LUU_STAR_ALIASES: Record<string, string[]> = {
   "lưu thiên hư": ["Lưu Hư", "Thiên Hư"],
   "lưu văn xương": ["Lưu Xương", "Văn Xương"],
   "lưu văn khúc": ["Lưu Khúc", "Văn Khúc"],
+  // --- Lưu Tứ Đức ---
+  "lưu thiên đức": ["Lưu Thiên Đức"],
+  "lưu nguyệt đức": ["Lưu Nguyệt Đức"],
+  "lưu phúc đức": ["Lưu Phúc Đức"],
+  "lưu long đức": ["Lưu Long Đức"],
   // --- Lưu Tứ Hóa (AI gọn "Lưu Lộc" / "Lưu Quyền"…) ---
   "lưu hóa lộc": ["Lưu Lộc", "Lưu Hóa Lộc"],
   "lưu hóa quyền": ["Lưu Quyền", "Lưu Hóa Quyền"],
   "lưu hóa khoa": ["Lưu Khoa", "Lưu Hóa Khoa"],
   "lưu hóa kỵ": ["Lưu Kỵ", "Lưu Hóa Kỵ"],
+  // --- Sao Vận (đại hạn) — AI có thể viết gọn ---
+  "vận lộc": ["Vận Lộc"],
+  "vận khôi": ["Vận Khôi"],
+  "vận việt": ["Vận Việt"],
+  "vận xương": ["Vận Xương"],
+  "vận khúc": ["Vận Khúc"],
+  "vận loan": ["Vận Loan"],
+  "vận hỷ": ["Vận Hỷ"],
+  "vận dương": ["Vận Dương", "Vận Kình"],
+  "vận đà": ["Vận Đà"],
+  "vận mã": ["Vận Mã"],
 };
 
 /** Biến thể tên VN ↔ iztro — whitelist để AI viết Tả Phụ không bị coi là bịa khi lá có Tả Phù. */
@@ -64,14 +177,36 @@ const CHART_STAR_ALIASES: Record<string, string[]> = {
   "tả phụ": ["Tả Phù"],
   "phụng các": ["Phượng Các"],
   "phượng các": ["Phụng Các"],
+  // Tuần / Triệt: iztro dùng một nhãn (Tuần Không / Triệt Lộ), sách & AI hay viết synonym.
+  "tuần không": ["Tuần Trung"],
+  "tuần trung": ["Tuần Không"],
+  "triệt lộ": ["Triệt Không"],
+  "triệt không": ["Triệt Lộ"],
 };
 
-/** Whitelist sao thực có trên lá số (gốc + [SAO LƯU] + Tứ Hóa bẩm sinh + alias lưu niên). */
+/**
+ * Whitelist + nhãn hiển thị từ SAO THỰC CÓ trên lá (gốc + Lưu + Vận + vòng + alias).
+ * Không inject toàn bộ tuviStarCatalog — chỉ lá này.
+ */
 export function buildChartStarWhitelist(chartData: { palaces?: any[] }): Set<string> {
-  const known = new Set<string>();
+  return new Set(buildChartStarEntries(chartData).map((e) => e.norm));
+}
+
+/** Entry (display, norm) từ lá — dùng whitelist + catalog quét theo lá. */
+export function buildChartStarEntries(chartData: { palaces?: any[] }): CatalogStar[] {
+  const byNorm = new Map<string, string>(); // norm → display ưu tiên (dài hơn)
+
   const add = (name: string) => {
-    const norm = normalizeStarName(name);
-    if (norm) known.add(norm);
+    // Display dùng để quét text AI — bỏ tag payload, không để "[SAO VẬN] …" làm needle.
+    const display = String(name || "")
+      .replace(/\[SAO\s*(?:LƯU|VẬN)\]\s*/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!display) return;
+    const norm = normalizeStarName(display);
+    if (!norm) return;
+    const prev = byNorm.get(norm);
+    if (!prev || display.length > prev.length) byNorm.set(norm, display);
   };
 
   const addVariant = (rawName: string) => {
@@ -83,12 +218,17 @@ export function buildChartStarWhitelist(chartData: { palaces?: any[] }): Set<str
     const noParen = raw.replace(/\s*\([^)]*\)\s*/g, " ").trim();
     if (noParen && noParen !== raw) add(noParen);
 
-    const stripped = noParen.replace(/\[SAO LƯU\]\s*/gi, "").trim();
+    const stripped = noParen.replace(/\[SAO\s*(?:LƯU|VẬN)\]\s*/gi, "").trim();
     if (stripped !== noParen) {
       add(stripped);
-      add(`Lưu ${stripped}`);
     }
-    if (/^lưu\s+/iu.test(stripped)) add(stripped.replace(/^lưu\s+/iu, ""));
+
+    // Bỏ prefix Lưu chỉ khi phần còn lại đủ dài (tránh "Lưu Hỷ" → "Hỷ" khớp "hỷ sự").
+    if (/^lưu\s+/iu.test(stripped)) {
+      const bare = stripped.replace(/^lưu\s+/iu, "").trim();
+      if (bare.length >= 4) add(bare);
+    }
+    // Không strip "Vận X" → "X" (Vận Hỷ → Hỷ gây false positive với "hỷ sự" / Bát Tự).
 
     // "Lưu Hóa Lộc (…)" → Lưu Lộc; "Lưu Lộc Tồn" → Lưu Lộc (bảng LUU_STAR_ALIASES).
     const hoaShort = stripped.match(/^lưu\s+hóa\s+(lộc|quyền|khoa|kỵ)$/iu);
@@ -99,16 +239,51 @@ export function buildChartStarWhitelist(chartData: { palaces?: any[] }): Set<str
   };
 
   for (const p of chartData.palaces || []) {
-    for (const s of allStarsOf(p)) addVariant(s.name);
-    for (const key of ["changsheng12", "boshi12", "jiangqian12", "suiqian12"] as const) {
+    for (const s of allStarsOf(p)) {
+      addVariant(s.name);
+      // Mutagen gắn trên sao (payload) — whitelist để AI nhắc "Hóa Kỵ" không bị coi bịa
+      if (s?.mutagen) addVariant(String(s.mutagen));
+    }
+    for (const key of [
+      "changsheng12",
+      "boshi12",
+      "jiangqian12",
+      "suiqian12",
+      "yearJiangqian12",
+      "yearSuiqian12",
+    ] as const) {
       if (p[key]) addVariant(p[key]);
     }
   }
 
-  // Tứ Hóa bẩm sinh là lớp khái niệm gắn sao thật (mutagen iztro), không phải star rời trong allStarsOf.
+  // Tứ Hóa bẩm sinh là lớp khái niệm (luôn cho phép nhãn Hóa chuẩn).
   for (const h of HOA_LABELS) add(h);
 
-  return known;
+  return [...byNorm.entries()]
+    .map(([norm, display]) => ({ norm, display }))
+    .sort((a, b) => b.display.length - a.display.length);
+}
+
+/**
+ * Catalog quét tên trong text AI:
+ * - Ưu tiên tên/alias **trên lá** (đầy đủ, kể cả "Lưu Hóa Lộc (Thiên Đồng)")
+ * - Cộng thêm tuviStarCatalog để bắt sao **bịa ngoài lá** (hallucination)
+ * Dedup theo norm, giữ display dài hơn.
+ */
+export function buildMentionScanCatalog(chartData?: { palaces?: any[] }): CatalogStar[] {
+  const byNorm = new Map<string, string>();
+  const absorb = (list: CatalogStar[]) => {
+    for (const { norm, display } of list) {
+      if (!norm) continue;
+      const prev = byNorm.get(norm);
+      if (!prev || display.length > prev.length) byNorm.set(norm, display);
+    }
+  };
+  if (chartData?.palaces) absorb(buildChartStarEntries(chartData));
+  absorb(TUVI_STAR_CATALOG);
+  return [...byNorm.entries()]
+    .map(([norm, display]) => ({ norm, display }))
+    .sort((a, b) => b.display.length - a.display.length);
 }
 
 export function extractMentionedStars(
@@ -118,13 +293,18 @@ export function extractMentionedStars(
   const text = String(responseText || "").normalize("NFC");
   const lower = text.toLowerCase();
   const mentioned = new Set<string>();
+  const baziRanges = findBaziPhraseRanges(lower);
 
   for (const { display, norm } of catalog) {
     const needle = display.normalize("NFC").toLowerCase();
     if (!needle) continue;
     let idx = 0;
     while ((idx = lower.indexOf(needle, idx)) !== -1) {
-      if (isWordBoundary(lower, idx, needle.length) && !isNegatedMention(text, idx)) {
+      if (
+        isWordBoundary(lower, idx, needle.length) &&
+        !isNegatedMention(text, idx) &&
+        !isBaziContextMatch(lower, idx, needle.length, baziRanges)
+      ) {
         mentioned.add(norm);
         break;
       }
@@ -142,13 +322,17 @@ export function assessStarAuditSeverity(hallucinated: string[]): StarAuditSeveri
 }
 
 export function auditAiStarMentions(responseText: string, chartData: { palaces?: any[] }): StarAuditResult {
-  const known = buildChartStarWhitelist(chartData);
-  const mentioned = extractMentionedStars(responseText);
+  const chartEntries = buildChartStarEntries(chartData);
+  const known = new Set(chartEntries.map((e) => e.norm));
+  const labelByNorm = new Map(chartEntries.map((e) => [e.norm, e.display]));
+  // Quét: tên trên lá (đầy đủ) + catalog toàn cục để bắt sao bịa ngoài lá
+  const mentioned = extractMentionedStars(responseText, buildMentionScanCatalog(chartData));
   const hallucinated = mentioned.filter((s) => !known.has(s));
   const severity = assessStarAuditSeverity(hallucinated);
 
-  const knownStarLabels = [...known]
-    .map((n) => TUVI_STAR_CATALOG.find((c) => c.norm === n)?.display || n)
+  const knownStarLabels = chartEntries
+    .map((e) => labelByNorm.get(e.norm) || e.display)
+    .filter((d, i, arr) => arr.indexOf(d) === i)
     .sort((a, b) => a.localeCompare(b, "vi"));
 
   let warning: string | undefined;

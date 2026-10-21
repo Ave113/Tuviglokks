@@ -3,19 +3,30 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GEMINI_MODEL_FLASH, GEMINI_MODEL_FLASH_LITE } from "../../constants/geminiModels";
 import { API_KEY_MISSING_MESSAGE } from "../chartGuards";
 import { createApp } from "../createApp";
-import { hallucinationTriggerStars, makeChartPayload, TEST_BYOK_KEY } from "../test/fixtures";
+import {
+  hallucinationTriggerStars,
+  makeChartPayload,
+  makeSparseChartForGuardTest,
+  TEST_BYOK_KEY,
+} from "../test/fixtures";
 import { installGeminiMock, makeGeminiResponse, restoreGeminiMock } from "../test/mockGemini";
 
 describe("POST /api/interpret (integration)", () => {
   const app = createApp();
   const chartData = makeChartPayload();
+  let prevPipelineEnv: string | undefined;
 
   beforeEach(() => {
     restoreGeminiMock();
+    // Bộ test này neo contract luồng 1-call — tắt pipeline A1 trong describe.
+    prevPipelineEnv = process.env.INTERPRET_PIPELINE;
+    process.env.INTERPRET_PIPELINE = "off";
   });
 
   afterEach(() => {
     restoreGeminiMock();
+    if (prevPipelineEnv === undefined) delete process.env.INTERPRET_PIPELINE;
+    else process.env.INTERPRET_PIPELINE = prevPipelineEnv;
   });
 
   it("happy path — 200, đúng shape {interpretation, modelUsed, fallbackUsed}", async () => {
@@ -100,18 +111,22 @@ describe("POST /api/interpret (integration)", () => {
   });
 
   it("response bịa sao → guard retry 1 lần, vẫn bịa → disclaimer", async () => {
-    const fakes = hallucinationTriggerStars(chartData);
+    // Lá thật phủ gần hết catalog → chỉ 0–1 sao missing (severity soft, không retry).
+    // Dùng lá thưa để chính tinh bịa chắc chắn kích severity retry.
+    const sparse = makeSparseChartForGuardTest();
+    const fakes = hallucinationTriggerStars(sparse);
     expect(fakes.length, "cần sao không có trên lá để test guard").toBeGreaterThan(0);
 
     const mention = fakes.map((f) => `Mệnh có ${f.display} miếu địa`).join(". ");
-    const hallucinated = `${mention}. `.repeat(8);
+    // Đủ dài ≥ MIN_VALID_LENGTH (200) để qua cổng 502.
+    const hallucinated = `${mention}. `.repeat(12);
     const { generateContent } = installGeminiMock({
       queue: [makeGeminiResponse(hallucinated), makeGeminiResponse(hallucinated)],
     });
 
     const res = await request(app)
       .post("/api/interpret")
-      .send({ chartData, customApiKey: TEST_BYOK_KEY });
+      .send({ chartData: sparse, customApiKey: TEST_BYOK_KEY });
 
     expect(res.status).toBe(200);
     expect(res.body.starAuditRetried).toBe(true);

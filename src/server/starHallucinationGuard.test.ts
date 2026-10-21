@@ -29,6 +29,56 @@ describe("starHallucinationGuard", () => {
     expect(mentioned).not.toContain(normalizeStarName("Hóa Kỵ"));
   });
 
+  it("ignorelist Bát Tự — 'vận Hỷ Dụng thần' không bị coi là sao Vận Hỷ", () => {
+    const quote =
+      "Giai đoạn tiền vận (trước 25 tuổi) con phải chịu nhiều rèn giũa, áp lực, " +
+      "nhưng bước sang trung vận, khi gặp đúng vận Hỷ Dụng thần, kết hợp với tài năng " +
+      "chuyên môn sẵn có, con sẽ bứt phá mạnh mẽ.";
+    const mentioned = extractMentionedStars(quote);
+    expect(mentioned).not.toContain(normalizeStarName("Vận Hỷ"));
+
+    const chart = chartPayload();
+    const audit = auditAiStarMentions(quote, chart);
+    expect(audit.hallucinated).not.toContain(normalizeStarName("Vận Hỷ"));
+    expect(audit.severity).toBe("clean");
+  });
+
+  it("ignorelist Bát Tự — Hỷ Dụng / Kỵ thần / Dụng thần không kích hoạt sao lạ", () => {
+    const text =
+      "Định Hỷ Dụng thần trước, rồi xét Kỵ thần và Dụng thần theo vượng nhược Nhật Chủ.";
+    const mentioned = extractMentionedStars(text);
+    expect(mentioned).not.toContain(normalizeStarName("Vận Hỷ"));
+    expect(mentioned).not.toContain(normalizeStarName("Hỷ Thần"));
+    // Không có tên sao TV thật trong câu → rỗng hoặc không chứa các mục trên
+    const chart = chartPayload();
+    const audit = auditAiStarMentions(text, chart);
+    expect(audit.severity).toBe("clean");
+  });
+
+  it("vẫn bắt Vận Hỷ khi luận như sao đóng cung (không dính cụm Bát Tự)", () => {
+    const chart = chartPayload();
+    const vanHy = normalizeStarName("Vận Hỷ");
+    const known = buildChartStarWhitelist(chart);
+    const audit = auditAiStarMentions("Mệnh có Vận Hỷ chiếu, hỷ sự năm hạn.", chart);
+    // Phải nhận diện là tên sao (không nuốt bởi ignorelist Bát Tự)
+    expect(audit.mentioned).toContain(vanHy);
+    // Nếu lá đã an Vận Hỷ (horoscope) → hợp lệ; không thì soft hallucinate
+    if (known.has(vanHy)) {
+      expect(audit.hallucinated).not.toContain(vanHy);
+    } else {
+      expect(audit.hallucinated).toContain(vanHy);
+      expect(audit.severity).toBe("soft");
+    }
+  });
+
+  it("không nuốt Thiên Hỷ / Hóa Kỵ khi nhắc đúng tên sao", () => {
+    const mentioned = extractMentionedStars(
+      "Cung Phu Thê có Thiên Hỷ; Tài Bạch gặp Hóa Kỵ.",
+    );
+    expect(mentioned).toContain(normalizeStarName("Thiên Hỷ"));
+    expect(mentioned).toContain(normalizeStarName("Hóa Kỵ"));
+  });
+
   it("bắt sao bịa không có trên lá", () => {
     const chart = chartPayload();
     const known = buildChartStarWhitelist(chart);
@@ -37,6 +87,31 @@ describe("starHallucinationGuard", () => {
     const audit = auditAiStarMentions(`Mệnh có ${fake!.display} miếu địa, rất cát.`, chart);
     expect(audit.hallucinated).toContain(fake!.norm);
     expect(audit.severity).not.toBe("clean");
+  });
+
+  it("alias Tuần/Triệt — AI viết synonym không false positive khi lá có nhãn iztro", () => {
+    // 2009 Kỷ Sửu: engine an Tuần Không (Mùi) + Triệt Lộ (Thân); AI hay viết Tuần Trung / Triệt Không.
+    const r = generateTuviAstrolabe(
+      "2009-06-09",
+      "23:05",
+      BIRTHPLACE.CENTRAL_SOUTH_OF_17,
+      "Nam",
+    );
+    const chart = buildInterpretPayload(r, 2027);
+    const known = buildChartStarWhitelist(chart);
+
+    expect(known.has(normalizeStarName("Tuần Không")), "lá phải có Tuần Không").toBe(true);
+    expect(known.has(normalizeStarName("Triệt Lộ")), "lá phải có Triệt Lộ").toBe(true);
+    expect(known.has(normalizeStarName("Tuần Trung")), "alias Tuần Trung").toBe(true);
+    expect(known.has(normalizeStarName("Triệt Không")), "alias Triệt Không").toBe(true);
+
+    const audit = auditAiStarMentions(
+      "Mệnh bị Tuần Trung án ngữ; Phúc Đức bị Triệt Không; Điền có Không Vong.",
+      chart,
+    );
+    expect(audit.hallucinated).not.toContain(normalizeStarName("Tuần Trung"));
+    expect(audit.hallucinated).not.toContain(normalizeStarName("Triệt Không"));
+    expect(audit.severity).toBe("clean");
   });
 
   it("assessStarAuditSeverity — chính tinh hoặc ≥3 sao → retry", () => {

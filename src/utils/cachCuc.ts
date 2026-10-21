@@ -69,8 +69,15 @@ const PATTERNS: PatternDef[] = [
   { id: "dong-luong-hoi", name: "Đồng Lương (hội tam phương)", hint: "ôn thuận, phúc hậu, hướng phục vụ/giáo dục", stars: ["Thiên Đồng", "Thiên Lương"], scope: "tamPhuong", skipIfMatched: ["co-nguyet-dong-luong"] },
   { id: "co-dong", name: "Cơ Đồng", hint: "linh hoạt, thiện biến, hợp kế hoạch–dịch vụ", stars: ["Thiên Cơ", "Thiên Đồng"], scope: "tamPhuong", skipIfMatched: ["co-nguyet-dong-luong"] },
   { id: "sat-co", name: "Sát Cơ", hint: "quyết đoán, mưu lược trong áp lực", stars: ["Thất Sát", "Thiên Cơ"], scope: "tamPhuong" },
+  { id: "co-luong", name: "Cơ Lương", hint: "mưu sĩ phúc trí, cố vấn dài hơi", stars: ["Thiên Cơ", "Thiên Lương"], scope: "tamPhuong", skipIfMatched: ["co-nguyet-dong-luong"], criticalHamStars: ["Thiên Cơ"], catBoostStars: ["Thiên Lương"] },
+  { id: "vu-sat", name: "Vũ Sát", hint: "tài lộc quyết đoán trong áp lực", stars: ["Vũ Khúc", "Thất Sát"], scope: "tamPhuong", catBoostStars: ["Vũ Khúc"], criticalHamStars: ["Thất Sát"] },
+  { id: "nhat-luong", name: "Nhật Lương", hint: "danh chính, che chở, hướng dẫn công", stars: ["Thái Dương", "Thiên Lương"], scope: "tamPhuong", criticalHamStars: ["Thái Dương"], catBoostStars: ["Thiên Lương"] },
+  { id: "am-duong-hoi", name: "Nhật Nguyệt hội", hint: "cân bằng danh–cảm, nội–ngoại", stars: ["Thái Dương", "Thái Âm"], scope: "tamPhuong", criticalHamStars: ["Thái Dương", "Thái Âm"] },
+  { id: "tu-phu-vu-tuong", name: "Tử Phủ Vũ Tướng", hint: "đế tinh hội đủ khố–tài–ấn: uy quyền quản trị, thủ thành có lực", stars: ["Tử Vi", "Thiên Phủ", "Vũ Khúc", "Thiên Tướng"], scope: "tamPhuong", catBoostStars: ["Tử Vi", "Thiên Phủ", "Thiên Tướng"] },
+  { id: "vu-tuong", name: "Vũ Tướng", hint: "tài lộc gắn khuôn khổ, quyết đoán có kỷ luật", stars: ["Vũ Khúc", "Thiên Tướng"], scope: "tamPhuong", criticalHamStars: ["Vũ Khúc"], catBoostStars: ["Thiên Tướng"] },
+  { id: "co-cu", name: "Cơ Cự", hint: "mưu + miệng: cơ động, nhiều hướng, giữ nhịp kém", stars: ["Thiên Cơ", "Cự Môn"], scope: "tamPhuong", criticalHamStars: ["Thiên Cơ"], catBoostStars: ["Cự Môn"] },
 
-  { id: "dong-cu", name: "Đồng Cự", hint: "ngôn ngữ, thị phi, biện luận (Đồng Cựu)", stars: ["Thiên Đồng", "Cự Môn"], scope: "dongCung", criticalHamStars: ["Cự Môn"] },
+  { id: "dong-cu", name: "Đồng Cự", hint: "ngôn ngữ, thị phi, biện luận", stars: ["Thiên Đồng", "Cự Môn"], scope: "dongCung", criticalHamStars: ["Cự Môn"] },
   { id: "dong-luong-dc", name: "Đồng Lương (đồng cung)", hint: "ôn hòa, phúc hậu, giữ của và nương tựa", stars: ["Thiên Đồng", "Thiên Lương"], scope: "dongCung" },
   { id: "co-nguyet-dc", name: "Cơ Nguyệt (đồng cung)", hint: "mưu lược sâu, kế hoạch tài chính/tình cảm", stars: ["Thiên Cơ", "Thái Âm"], scope: "dongCung", criticalHamStars: ["Thiên Cơ"] },
   { id: "liem-sat-dc", name: "Liêm Sát (đồng cung)", hint: "cương quyết, hung túc, quyết liệt", stars: ["Liêm Trinh", "Thất Sát"], scope: "dongCung", criticalHamStars: ["Liêm Trinh"], catBoostStars: ["Thất Sát"] },
@@ -78,6 +85,8 @@ const PATTERNS: PatternDef[] = [
   { id: "cu-nhat-dc", name: "Cự Nhật (đồng cung)", hint: "ngôn luận, danh tiếng, dễ thị phi", stars: ["Cự Môn", "Thái Dương"], scope: "dongCung", criticalHamStars: ["Thái Dương"] },
   { id: "tu-phu-dc", name: "Tử Phủ (đồng cung)", hint: "đế tọa, quản trị, giữ thành", stars: ["Tử Vi", "Thiên Phủ"], scope: "dongCung", catBoostStars: ["Tử Vi", "Thiên Phủ"] },
   { id: "sat-pha-tham-dc", name: "Sát Phá Tham (đồng cung)", hint: "biến động cực mạnh tại một cung", stars: ["Thất Sát", "Phá Quân", "Tham Lang"], scope: "dongCung" },
+  { id: "vu-tuong-dc", name: "Vũ Tướng (đồng cung)", hint: "quyết đoán tài chính có ấn khuôn khổ tập trung", stars: ["Vũ Khúc", "Thiên Tướng"], scope: "dongCung", criticalHamStars: ["Vũ Khúc"], catBoostStars: ["Thiên Tướng"] },
+  { id: "co-cu-dc", name: "Cơ Cự (đồng cung)", hint: "cơ động–miệng tập trung một cung: đổi hướng nhanh", stars: ["Thiên Cơ", "Cự Môn"], scope: "dongCung", criticalHamStars: ["Thiên Cơ"], catBoostStars: ["Cự Môn"] },
 ];
 
 export interface StarBrightnessInfo {
@@ -489,29 +498,30 @@ function formatMatchLine(m: CachCucMatch): string {
 }
 
 /**
- * Báo cáo gọn: dedup giữa các trục, một lần analyze.
+ * Báo cáo gọn: dedup giữa các trục.
+ * Truyền `analysis` sẵn nếu đã analyze (tránh chạy detect 2 lần).
  */
-export function buildCachCucReport(idx: ChartIndex): string {
-  const analysis = analyzeCachCuc(idx);
+export function buildCachCucReport(idx: ChartIndex, analysis?: CachCucAnalysis): string {
+  const a = analysis ?? analyzeCachCuc(idx);
   const lines: string[] = [];
 
   // Dedup: gom cách tam phương theo trục được chọn (mỗi dedupKey một trục)
   const tamByAxis = new Map<string, CachCucMatch[]>();
-  analysis.uniqueTamPhuong.forEach((m) => {
+  a.uniqueTamPhuong.forEach((m) => {
     const arr = tamByAxis.get(m.axisKeyword) || [];
     arr.push(m);
     tamByAxis.set(m.axisKeyword, arr);
   });
 
   const dongByAxis = new Map<string, CachCucMatch[]>();
-  analysis.uniqueDongCung.forEach((m) => {
+  a.uniqueDongCung.forEach((m) => {
     const arr = dongByAxis.get(m.axisKeyword) || [];
     arr.push(m);
     dongByAxis.set(m.axisKeyword, arr);
   });
 
   CACH_CUC_AXES.forEach((axis) => {
-    const report = analysis.rawByAxis.find((r) => r.axis.keyword === axis.keyword);
+    const report = a.rawByAxis.find((r) => r.axis.keyword === axis.keyword);
     if (!report) {
       lines.push(`[${axis.label}] — Không tìm thấy cung.`);
       lines.push("");
@@ -542,14 +552,14 @@ export function buildCachCucReport(idx: ChartIndex): string {
     lines.push("");
   });
 
-  if (analysis.globalDongCungExtra.length > 0) {
+  if (a.globalDongCungExtra.length > 0) {
     lines.push("[Đồng cung nổi bật — ngoài các trục trên]:");
-    analysis.globalDongCungExtra.forEach((m) => lines.push(formatMatchLine(m).replace("    •", "  -")));
+    a.globalDongCungExtra.forEach((m) => lines.push(formatMatchLine(m).replace("    •", "  -")));
     lines.push("");
   }
 
-  if (analysis.primarySummary.length > 0) {
-    lines.push(`[TÓM TẮT TRỤC CHỦ — MỆNH (dedup)]: ${analysis.primarySummary.join(" | ")}`);
+  if (a.primarySummary.length > 0) {
+    lines.push(`[TÓM TẮT TRỤC CHỦ — MỆNH (dedup)]: ${a.primarySummary.join(" | ")}`);
   }
 
   return lines.join("\n").trim() || "  - Không xác định được cách cục.";

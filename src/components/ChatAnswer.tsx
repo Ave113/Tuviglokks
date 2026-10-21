@@ -1,7 +1,7 @@
 import React from "react";
-import ReactMarkdown from "react-markdown";
 import { ChevronDown } from "lucide-react";
 import { splitChatAnswer } from "../utils/splitChatAnswer";
+import { SafeMarkdown } from "./SafeMarkdown";
 
 interface ChatAnswerProps {
   content: string;
@@ -21,7 +21,7 @@ export const ChatAnswer: React.FC<ChatAnswerProps> = ({ content, size = "sm" }) 
   if (!detail) {
     return (
       <div className={`markdown-body chat-markdown ${prose} prose-stone dark:prose-invert max-w-none`}>
-        <ReactMarkdown>{lead}</ReactMarkdown>
+        <SafeMarkdown>{lead}</SafeMarkdown>
       </div>
     );
   }
@@ -31,7 +31,7 @@ export const ChatAnswer: React.FC<ChatAnswerProps> = ({ content, size = "sm" }) 
       <div className="chat-answer-lead">
         <span className="chat-answer-lead-label">Kết luận</span>
         <div className={`markdown-body chat-markdown ${prose} prose-stone dark:prose-invert max-w-none`}>
-          <ReactMarkdown>{lead}</ReactMarkdown>
+          <SafeMarkdown>{lead}</SafeMarkdown>
         </div>
       </div>
 
@@ -41,7 +41,7 @@ export const ChatAnswer: React.FC<ChatAnswerProps> = ({ content, size = "sm" }) 
           Xem căn cứ chi tiết
         </summary>
         <div className={`markdown-body chat-markdown chat-answer-details-body ${prose} prose-stone dark:prose-invert max-w-none`}>
-          <ReactMarkdown>{detail}</ReactMarkdown>
+          <SafeMarkdown>{detail}</SafeMarkdown>
         </div>
       </details>
     </div>

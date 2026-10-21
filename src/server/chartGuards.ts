@@ -1,8 +1,85 @@
 import type { Response } from "express";
+import { BRANCHES_VI } from "../utils/chartRelations";
 
-export const assertChart12Palaces = (chartData: any, res: Response, contextMsg: string): boolean => {
-  if (!Array.isArray(chartData?.palaces) || chartData.palaces.length < 12) {
-    res.status(400).json({ error: contextMsg });
+const EARTHLY_BRANCH_SET = new Set(BRANCHES_VI);
+
+export const CHART_INVALID_12_MSG =
+  "Dữ liệu lá số không hợp lệ: thiếu thông tin 12 cung. Vui lòng an lại lá số đầy đủ trước khi yêu cầu AI luận giải.";
+
+export const CHART_INVALID_SCHEMA_MSG =
+  "Dữ liệu lá số không hợp lệ: 12 cung phải có tên, địa chi, index 0–11 duy nhất. Vui lòng an lại lá số.";
+
+export type ChartValidateOk = { ok: true };
+export type ChartValidateFail = { ok: false; message: string };
+export type ChartValidateResult = ChartValidateOk | ChartValidateFail;
+
+/**
+ * Validate payload chart tối thiểu trước khi gọi Gemini.
+ * - Đủ đúng 12 cung
+ * - Mỗi cung: name non-empty, earthlyBranch ∈ 12 chi, index integer 0–11
+ * - 12 index và 12 địa chi đều unique (tránh mảng rác / duplicate)
+ */
+export function validateChart12Palaces(chartData: unknown): ChartValidateResult {
+  if (chartData == null || typeof chartData !== "object") {
+    return { ok: false, message: CHART_INVALID_12_MSG };
+  }
+
+  const palaces = (chartData as { palaces?: unknown }).palaces;
+  if (!Array.isArray(palaces) || palaces.length !== 12) {
+    return { ok: false, message: CHART_INVALID_12_MSG };
+  }
+
+  const seenIndexes = new Set<number>();
+  const seenBranches = new Set<string>();
+
+  for (let i = 0; i < palaces.length; i++) {
+    const p = palaces[i];
+    if (p == null || typeof p !== "object") {
+      return { ok: false, message: CHART_INVALID_SCHEMA_MSG };
+    }
+
+    const rec = p as Record<string, unknown>;
+    const name = typeof rec.name === "string" ? rec.name.trim() : "";
+    if (!name) {
+      return { ok: false, message: CHART_INVALID_SCHEMA_MSG };
+    }
+
+    const branch = typeof rec.earthlyBranch === "string" ? rec.earthlyBranch.trim() : "";
+    if (!EARTHLY_BRANCH_SET.has(branch)) {
+      return { ok: false, message: CHART_INVALID_SCHEMA_MSG };
+    }
+
+    const index = rec.index;
+    if (typeof index !== "number" || !Number.isInteger(index) || index < 0 || index > 11) {
+      return { ok: false, message: CHART_INVALID_SCHEMA_MSG };
+    }
+
+    if (seenIndexes.has(index) || seenBranches.has(branch)) {
+      return { ok: false, message: CHART_INVALID_SCHEMA_MSG };
+    }
+    seenIndexes.add(index);
+    seenBranches.add(branch);
+  }
+
+  if (seenIndexes.size !== 12 || seenBranches.size !== 12) {
+    return { ok: false, message: CHART_INVALID_SCHEMA_MSG };
+  }
+
+  return { ok: true };
+}
+
+/** Express helper — 400 + JSON khi chart không hợp lệ. */
+export const assertChart12Palaces = (
+  chartData: unknown,
+  res: Response,
+  contextMsg?: string,
+): boolean => {
+  const result = validateChart12Palaces(chartData);
+  if (result.ok === false) {
+    // Giữ message ngữ cảnh route cho lỗi “thiếu 12 cung”; schema lỗi dùng message cụ thể.
+    const msg =
+      result.message === CHART_INVALID_12_MSG && contextMsg ? contextMsg : result.message;
+    res.status(400).json({ error: msg });
     return false;
   }
   return true;

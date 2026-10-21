@@ -16,7 +16,7 @@
 // về index địa chi chuẩn (Tý = 0 ... Hợi = 11) để nhất quán với core tuvi.ts.
 // ============================================================================
 
-import { TU_HOA_BY_STEM, HOA_LABELS } from "./tuHoa";
+import { TU_HOA_BY_STEM, HOA_LABELS, normalizeHeavenlyStem, getNatalTuHoaQuartet } from "./tuHoa";
 
 export const BRANCHES_VI = [
   "Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi",
@@ -25,6 +25,13 @@ export const BRANCHES_VI = [
 // iztro: index gốc Dần = 0 -> quy về index địa chi chuẩn Tý = 0.
 export const toBranchIndex = (palaceIndex: number): number =>
   ((palaceIndex + 2) % 12 + 12) % 12;
+
+// Giáp cung: 2 chi kề của một cung (b−1 và b+1, wrap vòng 12) — nền dữ liệu máy
+// cho luận "Tuần/Triệt giáp cung" (cung bị kẹp giữa cung kề đã bị Tuần/Triệt khóa).
+export const giapBranches = (branchIdx: number): [number, number] => [
+  (((branchIdx - 1) % 12) + 12) % 12,
+  (((branchIdx + 1) % 12) + 12) % 12,
+];
 
 // Nhị hợp: Tý-Sửu, Dần-Hợi, Mão-Tuất, Thìn-Dậu, Tỵ-Thân, Ngọ-Mùi
 export const NHI_HOP: Record<number, number> = {
@@ -36,13 +43,13 @@ export const LUC_HAI: Record<number, number> = {
 };
 
 // Chuẩn hóa tên sao để so khớp đáng tin: chuẩn hóa Unicode (NFC), xóa ký tự ẩn
-// (zero-width), bỏ tiền tố [SAO LƯU], gộp khoảng trắng thừa, hạ chữ thường.
+// (zero-width), bỏ tiền tố [SAO LƯU]/[SAO VẬN], gộp khoảng trắng thừa, hạ chữ thường.
 // Giữ ĐỒNG NHẤT với normalizeStarName trong server.ts để khớp sao như nhau.
 export const normalizeStarName = (raw: any): string =>
   String(raw || "")
     .normalize("NFC")
     .replace(/[\u200B-\u200D\uFEFF]/g, "")
-    .replace(/\[SAO LƯU\]\s*/g, "")
+    .replace(/\[SAO\s*(?:LƯU|VẬN)\]\s*/gi, "")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
@@ -69,6 +76,44 @@ export const allStarsOf = (p: any): any[] => [
   ...(p?.minorStars || []),
   ...(p?.adjectiveStars || []),
 ];
+
+// ----------------------------------------------------------------------------
+// MUTAGEN TOKEN — mạch liên kết Tứ Hóa bẩm sinh vào các scanner quét theo tên.
+// iztro gắn Tứ Hóa bẩm sinh ở field `mutagen` ("Lộc|Quyền|Khoa|Kỵ") RIÊNG của
+// sao gốc — KHÔNG nằm trong `name`. Nếu chỉ quét tên, mọi cheat sheet (vùng
+// sát/kỵ, đếm cát/hung, kích hoạt hạn, điểm mù) đều MÙ với Tứ Hóa bẩm sinh
+// (Hóa Kỵ bẩm sinh là tín hiệu kỵ mạnh nhất lá mà không bị "thấy").
+// starTokensOf phát sinh thêm token "Hóa Lộc/Quyền/Khoa/Kỵ" từ mutagen — chỉ
+// sao GỐC mới mang mutagen (sao [SAO LƯU]/[SAO VẬN] payload không có), nên
+// token luôn là tứ hóa BẨM SINH, đúng lớp dữ liệu các scanner mong đợi.
+// ----------------------------------------------------------------------------
+const MUTAGEN_LABEL_MAP: Record<string, string> = {
+  "lộc": "Hóa Lộc", "loc": "Hóa Lộc",
+  "quyền": "Hóa Quyền", "quyen": "Hóa Quyền",
+  "khoa": "Hóa Khoa",
+  "kỵ": "Hóa Kỵ", "ky": "Hóa Kỵ",
+};
+
+const mutagenToLabel = (raw: unknown): string | null => {
+  const s = String(raw ?? "").normalize("NFC").trim();
+  if (!s) return null;
+  if (/^hóa\s+/i.test(s)) return s; // đã ở dạng "Hóa X"
+  const key = s.replace(/^hóa\s+/i, "").toLowerCase();
+  return MUTAGEN_LABEL_MAP[key] || null;
+};
+
+/** Nhãn "Hóa X" từ mutagen gắn trên sao (dùng cho scanner cần ghép sao↔hóa). */
+export const mutagenLabelOf = mutagenToLabel;
+
+/** Sao + token Tứ Hóa bẩm sinh (từ mutagen) — dùng cho MỌI scanner theo tên. */
+export const starTokensOf = (p: any): any[] => {
+  const stars = allStarsOf(p);
+  const mutagenTokens = stars
+    .map((s: any) => mutagenToLabel(s?.mutagen))
+    .filter((m): m is string => Boolean(m))
+    .map((label) => ({ name: label }));
+  return [...stars, ...mutagenTokens];
+};
 
 export interface ChartIndex {
   palacesArr: any[];
@@ -121,8 +166,8 @@ export const buildFlyingTuHoaLines = (
   idx: ChartIndex,
   stem: string | undefined,
 ): string[] => {
-  const key = typeof stem === "string" ? stem.trim() : stem;
-  const tuhoa = key ? TU_HOA_BY_STEM[key] : undefined;
+  const key = normalizeHeavenlyStem(stem);
+  const tuhoa = key ? getNatalTuHoaQuartet(key) : null;
   if (!tuhoa) return [];
   return tuhoa.map((star, i) => {
     const dest = findStarBranch(idx, star);
@@ -137,7 +182,11 @@ export const buildFlyingTuHoaLines = (
 // Khối quan hệ hình học đầy đủ của MỘT cung: xung chiếu / tam hợp / nhị hợp /
 // lục hại + phi tứ hóa theo can chính cung. Có nhãn neo tên cung để AI không
 // ghép nhầm sang cung lân cận. Dùng chung cho interpret và chat.
-export const buildRelationsBlock = (idx: ChartIndex, p: any): string => {
+export const buildRelationsBlock = (
+  idx: ChartIndex,
+  p: any,
+  options?: { includeFlights?: boolean },
+): string => {
   const b = toBranchIndex(p.index);
   const xung = (b + 6) % 12;
   const th1 = (b + 4) % 12;
@@ -147,22 +196,24 @@ export const buildRelationsBlock = (idx: ChartIndex, p: any): string => {
   lines.push(`  - Tam hợp: ${palaceLabel(idx, th1)} | ${palaceLabel(idx, th2)}`);
   lines.push(`  - Nhị hợp: ${palaceLabel(idx, NHI_HOP[b])}`);
   lines.push(`  - Lục hại: ${palaceLabel(idx, LUC_HAI[b])}`);
-  const flights = buildFlyingTuHoaLines(idx, p.heavenlyStem);
-  if (flights.length > 0) {
-    lines.push(`  - Phi Tứ Hóa (can ${p.heavenlyStem}): ${flights.join("; ")}`);
+  if (options?.includeFlights !== false) {
+    const flights = buildFlyingTuHoaLines(idx, p.heavenlyStem);
+    if (flights.length > 0) {
+      lines.push(`  - Phi Tứ Hóa (can ${p.heavenlyStem}): ${flights.join("; ")}`);
+    }
   }
   const anchor = `  [Quan hệ của ${p.name} (${BRANCHES_VI[b]})]`;
   return [anchor, ...lines].join("\n");
 };
 
-// Tứ Hóa bẩm sinh (natal) theo Thiên can năm sinh: mỗi Hóa rơi vào sao nào,
+// Tứ Hóa bẩm sinh theo Thiên can năm sinh: mỗi Hóa rơi vào sao nào,
 // đóng cung nào. Trả về null khi chưa xác định được can năm sinh.
 export const buildNatalTuHoaLines = (
   idx: ChartIndex,
   birthHeavenlyStem: string | undefined,
 ): string[] | null => {
-  const key = typeof birthHeavenlyStem === "string" ? birthHeavenlyStem.trim() : birthHeavenlyStem;
-  const table = key ? TU_HOA_BY_STEM[key] : undefined;
+  const key = normalizeHeavenlyStem(birthHeavenlyStem);
+  const table = key ? getNatalTuHoaQuartet(key) : null;
   if (!table) return null;
   return table.map((star, i) => {
     const dest = findStarBranch(idx, star);
@@ -181,10 +232,23 @@ export const SAT_KY_STARS = [
   "Cô Thần", "Quả Tú", "Tang Môn", "Bạch Hổ",
 ].map(normalizeStarName);
 
-// Liệt kê sát/kỵ tinh thực có trong MỘT cung (so khớp chính xác sau chuẩn hóa).
+// Khớp sát/kỵ sau chuẩn hóa — BỎ HẬU TỐ "(Sao Danh)" mà app tự sinh cho nhãn
+// Lưu/Vận Hóa (vd "Lưu Hóa Kỵ (Thái Dương)" → "lưu hóa kỵ"). Thiếu bước này,
+// mọi scanner so-exact sẽ MÙ với chính các nhãn Hóa Kỵ lớp Lưu/Vận do app an.
+export const normalizeSatKyMatch = (raw: any): string =>
+  normalizeStarName(raw).replace(/\s*\([^)]*\)\s*$/, "").trim();
+
+/** True nếu tên sao (sau chuẩn hóa, bỏ hậu tố ngoặc) thuộc danh sách sát/kỵ. */
+export const isSatKyStarName = (
+  raw: any,
+  list: readonly string[] = SAT_KY_STARS,
+): boolean => list.includes(normalizeSatKyMatch(raw));
+
+// Liệt kê sát/kỵ tinh thực có trong MỘT cung (so khớp chính xác sau chuẩn hóa;
+// quét cả token Tứ Hóa bẩm sinh từ mutagen — Hóa Kỵ bẩm sinh không bị bỏ sót).
 export const satKyStarsInPalace = (p: any): string[] =>
-  allStarsOf(p)
-    .filter((s: any) => SAT_KY_STARS.includes(normalizeStarName(s.name)))
+  starTokensOf(p)
+    .filter((s: any) => isSatKyStarName(s.name))
     .map((s: any) => s.name);
 
 // ----------------------------------------------------------------------------
@@ -234,8 +298,8 @@ const crossLinkLinesForStem = (
   stem: string | undefined,
   context: string,
 ): string[] => {
-  const key = typeof stem === "string" ? stem.trim() : stem;
-  const tuhoa = key ? TU_HOA_BY_STEM[key] : undefined;
+  const key = normalizeHeavenlyStem(stem);
+  const tuhoa = key ? getNatalTuHoaQuartet(key) : undefined;
   if (!tuhoa) return [];
   const lines: string[] = [];
   tuhoa.forEach((star, i) => {
@@ -269,3 +333,204 @@ export const buildCrossLinks = (
   }
   return all.join("\n");
 };
+
+// ----------------------------------------------------------------------------
+// CẤU TRÚC PHÂN TÁCH RIÊNG: TỨ HÓA BẨM SINH vs TỰ / PHI TỨ HÓA
+// ----------------------------------------------------------------------------
+
+export interface NatalTuHoaDetailItem {
+  hoa: string;
+  star: string;
+  palaceName: string;
+  branch: string;
+  branchIdx: number;
+}
+
+export interface NatalTuHoaObject {
+  birthHeavenlyStem: string;
+  items: NatalTuHoaDetailItem[];
+  formattedBlock: string;
+}
+
+export interface PalaceTuHoaFlight {
+  fromPalaceName: string;
+  fromBranch: string;
+  fromBranchIdx: number;
+  fromStem: string;
+  selfMutagens: {
+    hoa: string;
+    star: string;
+  }[];
+  flyingMutagens: {
+    hoa: string;
+    star: string;
+    toPalaceName: string;
+    toBranch: string;
+    toBranchIdx: number;
+  }[];
+}
+
+export interface SeparateTuHoaResult {
+  natalTuHoa: NatalTuHoaObject | null;
+  palaceTuHoaFlights: PalaceTuHoaFlight[];
+  corePsychologicalFlights: {
+    menhFlight: PalaceTuHoaFlight | null;
+    phucFlight: PalaceTuHoaFlight | null;
+    formattedBlock: string;
+  };
+  formattedSelfFlyingBlock: string;
+}
+
+export function buildSeparateTuHoaStructures(
+  idx: ChartIndex,
+  birthHeavenlyStem: string | undefined,
+): SeparateTuHoaResult {
+  const stemKey = normalizeHeavenlyStem(birthHeavenlyStem);
+  const natalTable = stemKey ? getNatalTuHoaQuartet(stemKey) : null;
+
+  let natalTuHoa: NatalTuHoaObject | null = null;
+  if (natalTable && stemKey) {
+    const items: NatalTuHoaDetailItem[] = natalTable.map((star, i) => {
+      const dest = findStarBranch(idx, star);
+      const destPalace = dest >= 0 ? idx.palaceByBranch[dest] : null;
+      return {
+        hoa: HOA_LABELS[i],
+        star,
+        palaceName: destPalace?.name || (dest >= 0 ? BRANCHES_VI[dest] : "Chưa rõ"),
+        branch: dest >= 0 ? BRANCHES_VI[dest] : "—",
+        branchIdx: dest,
+      };
+    });
+    const lines = items.map(
+      (it) => `  - ${it.hoa} → ${it.star} [tọa tại ${it.palaceName} (${it.branch})]`,
+    );
+    natalTuHoa = {
+      birthHeavenlyStem: stemKey,
+      items,
+      formattedBlock: lines.join("\n"),
+    };
+  }
+
+  const palaceTuHoaFlights: PalaceTuHoaFlight[] = [];
+  let menhFlight: PalaceTuHoaFlight | null = null;
+  let phucFlight: PalaceTuHoaFlight | null = null;
+
+  (idx.palacesArr || []).forEach((p: any) => {
+    const b = toBranchIndex(p.index);
+    const stem = normalizeHeavenlyStem(p.heavenlyStem);
+    const quartet = stem ? getNatalTuHoaQuartet(stem) : null;
+    const flight: PalaceTuHoaFlight = {
+      fromPalaceName: p.name || BRANCHES_VI[b],
+      fromBranch: BRANCHES_VI[b],
+      fromBranchIdx: b,
+      fromStem: stem,
+      selfMutagens: [],
+      flyingMutagens: [],
+    };
+
+    if (quartet) {
+      quartet.forEach((star, i) => {
+        const dest = findStarBranch(idx, star);
+        const hoa = HOA_LABELS[i];
+        if (dest === b) {
+          flight.selfMutagens.push({ hoa, star });
+        } else if (dest >= 0) {
+          const destPalace = idx.palaceByBranch[dest];
+          flight.flyingMutagens.push({
+            hoa,
+            star,
+            toPalaceName: destPalace?.name || BRANCHES_VI[dest],
+            toBranch: BRANCHES_VI[dest],
+            toBranchIdx: dest,
+          });
+        }
+      });
+    }
+
+    palaceTuHoaFlights.push(flight);
+
+    const normName = normalizeStarName(p.name);
+    const isMenh = normName === "mệnh" || normName === "menh" || normName.includes("mệnh") || normName.includes("menh");
+    const isPhuc = normName === "phúc đức" || normName === "phuc duc" || normName.includes("phúc") || normName.includes("phước");
+
+    if (isMenh && !menhFlight) {
+      menhFlight = flight;
+    } else if (isPhuc && !phucFlight) {
+      phucFlight = flight;
+    }
+  });
+
+  // Fallback nếu tên cung đặc thù
+  if (!menhFlight && palaceTuHoaFlights.length > 0) {
+    menhFlight = palaceTuHoaFlights.find((f) => /mệnh|menh/i.test(f.fromPalaceName)) || null;
+  }
+  if (!phucFlight && palaceTuHoaFlights.length > 0) {
+    phucFlight = palaceTuHoaFlights.find((f) => /phúc|phước/i.test(f.fromPalaceName)) || null;
+  }
+
+  const psychLines: string[] = [];
+  if (menhFlight) {
+    const mf: PalaceTuHoaFlight = menhFlight;
+    const selfs = mf.selfMutagens.map((s) => `Tự ${s.hoa} [${s.star}]`).join(", ");
+    const flyings = mf.flyingMutagens
+      .map((f) => `${f.hoa} (${f.star}) → ${f.toPalaceName} (${f.toBranch})`)
+      .join("; ");
+    psychLines.push(
+      `• TỪ CUNG MỆNH (Can ${mf.fromStem} tại ${mf.fromBranch} — Ý CHÍ & ĐỘNG CƠ HÀNH ĐỘNG CỦA BẢN THÂN):`,
+    );
+    if (selfs) psychLines.push(`  - Tự Hóa tại bản cung: ${selfs} (xu hướng tự biến chuyển / tự tạo áp lực nội thân)`);
+    if (flyings) psychLines.push(`  - Phi Hóa xuất: ${flyings}`);
+    psychLines.push(
+      `  * Phân tích tâm lý bắt buộc: Cung Mệnh phi Hóa phản ánh trực tiếp nguyên nhân tâm lý cốt lõi, cách bạn phản ứng trước cơ hội/thử thách và mục tiêu vô thức dẫn dắt hành vi.`,
+    );
+  }
+  if (phucFlight) {
+    const pf: PalaceTuHoaFlight = phucFlight;
+    const selfs = pf.selfMutagens.map((s) => `Tự ${s.hoa} [${s.star}]`).join(", ");
+    const flyings = pf.flyingMutagens
+      .map((f) => `${f.hoa} (${f.star}) → ${f.toPalaceName} (${f.toBranch})`)
+      .join("; ");
+    psychLines.push(
+      `• TỪ CUNG PHÚC ĐỨC (Can ${pf.fromStem} tại ${pf.fromBranch} — TIỀM THỨC, NGHIỆP CẢM & TRẠNG THÁI TINH THẦN CỐT LÕI):`,
+    );
+    if (selfs) psychLines.push(`  - Tự Hóa tại bản cung: ${selfs} (dao động cảm xúc ngầm / an định nội tâm)`);
+    if (flyings) psychLines.push(`  - Phi Hóa xuất: ${flyings}`);
+    psychLines.push(
+      `  * Phân tích tâm lý bắt buộc: Cung Phúc Đức phi Hóa bộc lộ tiềm thức, điểm tựa tinh thần hoặc nỗi sợ vô thức sâu xa nhất chi phối quyết định cuộc đời.`,
+    );
+  }
+
+  const formattedPsychBlock = psychLines.length
+    ? psychLines.join("\n")
+    : "  - Chưa xác định được đường bay Tứ Hóa từ Mệnh/Phúc Đức.";
+
+  const flightBlockLines: string[] = [];
+  palaceTuHoaFlights.forEach((f) => {
+    const parts: string[] = [];
+    if (f.selfMutagens.length > 0) {
+      parts.push(`[TỰ HÓA: ${f.selfMutagens.map((s) => `${s.hoa} (${s.star})`).join(", ")}]`);
+    }
+    if (f.flyingMutagens.length > 0) {
+      parts.push(
+        `[PHI HÓA: ${f.flyingMutagens.map((m) => `${m.hoa} qua ${m.star} bay vào ${m.toPalaceName}`).join("; ")}]`,
+      );
+    }
+    if (parts.length > 0) {
+      flightBlockLines.push(
+        `  - ${f.fromPalaceName} (${f.fromBranch} - can ${f.fromStem}): ${parts.join(" | ")}`,
+      );
+    }
+  });
+
+  return {
+    natalTuHoa,
+    palaceTuHoaFlights,
+    corePsychologicalFlights: {
+      menhFlight,
+      phucFlight,
+      formattedBlock: formattedPsychBlock,
+    },
+    formattedSelfFlyingBlock: flightBlockLines.join("\n"),
+  };
+}
+

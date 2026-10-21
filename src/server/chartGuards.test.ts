@@ -1,10 +1,69 @@
 import { describe, it, expect } from "vitest";
+import { makeChartPayload } from "./test/fixtures";
 import {
   resolveApiKey,
   isServerKeyAllowed,
   describeServerKeyPolicy,
   API_KEY_MISSING_MESSAGE,
+  validateChart12Palaces,
+  CHART_INVALID_12_MSG,
+  CHART_INVALID_SCHEMA_MSG,
 } from "./chartGuards";
+
+describe("validateChart12Palaces", () => {
+  it("lá số thật (makeChartPayload) → ok", () => {
+    expect(validateChart12Palaces(makeChartPayload())).toEqual({ ok: true });
+  });
+
+  it("thiếu / không đủ 12 cung → fail 12", () => {
+    expect(validateChart12Palaces(null).ok).toBe(false);
+    expect(validateChart12Palaces({}).ok).toBe(false);
+    const base = makeChartPayload();
+    const r = validateChart12Palaces({ ...base, palaces: base.palaces.slice(0, 11) });
+    expect(r.ok).toBe(false);
+    if (r.ok === false) expect(r.message).toBe(CHART_INVALID_12_MSG);
+  });
+
+  it("cung thiếu name / earthlyBranch / index → fail schema", () => {
+    const base = makeChartPayload();
+    const badName = {
+      ...base,
+      palaces: base.palaces.map((p, i) => (i === 0 ? { ...p, name: "" } : p)),
+    };
+    const r1 = validateChart12Palaces(badName);
+    expect(r1.ok).toBe(false);
+    if (r1.ok === false) expect(r1.message).toBe(CHART_INVALID_SCHEMA_MSG);
+
+    const badBranch = {
+      ...base,
+      palaces: base.palaces.map((p, i) => (i === 0 ? { ...p, earthlyBranch: "Mars" } : p)),
+    };
+    expect(validateChart12Palaces(badBranch).ok).toBe(false);
+
+    const badIndex = {
+      ...base,
+      palaces: base.palaces.map((p, i) => (i === 0 ? { ...p, index: 99 } : p)),
+    };
+    expect(validateChart12Palaces(badIndex).ok).toBe(false);
+  });
+
+  it("duplicate index hoặc địa chi → fail schema", () => {
+    const base = makeChartPayload();
+    const dupIndex = {
+      ...base,
+      palaces: base.palaces.map((p, i) => (i === 1 ? { ...p, index: base.palaces[0].index } : p)),
+    };
+    expect(validateChart12Palaces(dupIndex).ok).toBe(false);
+
+    const dupBranch = {
+      ...base,
+      palaces: base.palaces.map((p, i) =>
+        i === 1 ? { ...p, earthlyBranch: base.palaces[0].earthlyBranch } : p,
+      ),
+    };
+    expect(validateChart12Palaces(dupBranch).ok).toBe(false);
+  });
+});
 
 describe("isServerKeyAllowed", () => {
   it("ALLOW_SERVER_KEY=0|false|no → cấm", () => {

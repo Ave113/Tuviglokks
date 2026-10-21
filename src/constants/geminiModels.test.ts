@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  DEFAULT_CHAT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL,
   GEMINI_FALLBACK_MODEL,
   GEMINI_MODEL_FLASH,
@@ -9,10 +10,10 @@ import {
 } from "./geminiModels";
 
 describe("geminiModels", () => {
-  it("tên model khớp @google/genai@2.4 Model_2 union", () => {
-    // genai.d.ts: ... | 'gemini-3.1-flash-lite' | ... | 'gemini-3.5-flash' | (string & {})
-    expect(GEMINI_MODEL_FLASH).toBe("gemini-3.5-flash");
-    expect(GEMINI_MODEL_FLASH_LITE).toBe("gemini-3.1-flash-lite");
+  it("tên model primary / lite (API id)", () => {
+    // genai Model_2 có (string & {}) — id mới vẫn gửi được qua API
+    expect(GEMINI_MODEL_FLASH).toBe("gemini-3.8-flash");
+    expect(GEMINI_MODEL_FLASH_LITE).toBe("gemini-3.5-flash-lite");
   });
 
   it("resolveGeminiModelName — mặc định primary, lite khi chọn lite", () => {
@@ -23,6 +24,7 @@ describe("geminiModels", () => {
 
   it("DEFAULT và FALLBACK", () => {
     expect(DEFAULT_GEMINI_MODEL).toBe(GEMINI_MODEL_FLASH);
+    expect(DEFAULT_CHAT_GEMINI_MODEL).toBe(GEMINI_MODEL_FLASH_LITE);
     expect(GEMINI_FALLBACK_MODEL).toBe(GEMINI_MODEL_FLASH_LITE);
   });
 

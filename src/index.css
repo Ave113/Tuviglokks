@@ -1,10 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Space+Grotesk:wght@300..700&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,400..800;1,400..800&family=Space+Grotesk:wght@400..700&display=swap');
 @import "tailwindcss";
 
+/* Dark mode: chuyển từ "theo hệ điều hành" (mặc định Tailwind v4) sang "theo class .dark"
+   để nút Light/Dark thủ công hoạt động. Script chống nháy trong index.html set .dark trước khi paint. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
+  /* UI hiện đại: Plus Jakarta Sans (geometric, nét rõ). Inter vẫn fallback. */
+  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+  /* Tiêu đề brand / section: Space Grotesk — nét kỹ thuật hiện đại hơn Playfair. */
+  --font-display: "Space Grotesk", "Plus Jakarta Sans", system-ui, sans-serif;
+  /* Đọc sớ dài (Zen / markdown): Lora giữ cảm giác “sách”. */
   --font-serif: "Lora", "Merriweather", Georgia, serif;
-  --font-display: "Playfair Display", serif;
-  --font-sans: "Inter", system-ui, sans-serif;
   --animate-spin-slow: spin 30s linear infinite;
 
   /* Custom palette used across the app */
@@ -29,6 +36,137 @@
   --color-sky-850: oklch(42% 0.12 230);
 }
 
+/* Nét chữ UI: antialias + kerning + tabular nums nhẹ */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  color-scheme: light;
+}
+
+/* Native controls/scrollbar tối đồng bộ khi bật Dark */
+.dark {
+  color-scheme: dark;
+}
+
+/* ===== Đổi theme mượt (Light/Dark) =====
+   ThemeToggle gắn tạm class .theme-transition lên <html> NGAY trước khi flip .dark, để
+   nền/chữ/viền toàn trang crossfade ~320ms thay vì đổi "cái rụp". Class tự gỡ sau ~380ms,
+   nên các tương tác sau đó vẫn giữ cảm giác bấm nhanh, không trễ.
+
+   LƯU Ý: phải viết LONGHAND với giá trị literal — Lightning CSS (Tailwind v4) không
+   expand được shorthand `transition: ... var(...)` và sẽ xuất ra longhand RỖNG (bug đã
+   gặp thực tế). scale để 150ms cho nút vẫn "ăn tay" nhanh trong lúc crossfade. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition-property: background-color, color, border-color, outline-color, text-decoration-color, fill, stroke, box-shadow, scale !important;
+  transition-duration: 320ms, 320ms, 320ms, 320ms, 320ms, 320ms, 320ms, 320ms, 150ms !important;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition-delay: 0s !important;
+}
+
+/* Đảm bảo viewport mobile không bị cuộn lệch ngang toàn trang */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* Ngăn chặn Safari trên iOS và Chrome mobile tự động phóng to (auto-zoom) viewport khi chạm vào ô nhập liệu/chọn */
+  input[type="text"],
+  input[type="date"],
+  input[type="time"],
+  input[type="search"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  letter-spacing: -0.011em;
+}
+
+/* ===== Nút bấm: chuyển động mượt, nhất quán toàn app =====
+   - Mọi <button> mặc định có sẵn transition màu/nền/viền/bóng/transform + scale nhẹ khi bấm;
+     nút nào có utility riêng (transition-*, active:scale-*) vẫn được ưu tiên như cũ (layer utilities).
+   - Scale dùng thuộc tính `scale` độc lập — không đè transform layout/hover của từng nút. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  button,
+  [role="button"] {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, translate, scale, rotate, filter, outline-color;
+    transition-duration: var(--default-transition-duration, 150ms);
+    transition-timing-function: var(--default-transition-timing-function, cubic-bezier(0.4, 0, 0.2, 1));
+  }
+
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    scale: 0.97;
+  }
+}
+
+/* Icon nút Light/Dark "nảy" một nhịp khi được chọn — phản hồi rõ nhưng không phô */
+@keyframes themeIconPop {
+  0% {
+    transform: scale(0.55) rotate(-28deg);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.icon-pop {
+  animation: themeIconPop 340ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Người dùng hạn chế chuyển động — tắt toàn bộ hiệu ứng chuyển động vừa thêm */
+@media (prefers-reduced-motion: reduce) {
+  .theme-transition,
+  .theme-transition *,
+  .theme-transition *::before,
+  .theme-transition *::after {
+    transition: none !important;
+  }
+
+  button,
+  [role="button"] {
+    transition-duration: 0.01ms;
+  }
+
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    scale: none;
+  }
+
+  .icon-pop {
+    animation: none;
+  }
+}
+
+/* Section / brand titles — hiện đại + nét hơn 1 cấp */
+.font-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-feature-settings: "ss02" 1, "kern" 1;
+}
+
 /* Print utilities and customized scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
@@ -47,8 +185,9 @@
 
 /* Custom smooth horizontal scrollbar style for the 12 Palaces Board */
 .chart-scroll-container {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(139, 92, 246, 0.4) transparent;
+  /* KHÔNG dùng scrollbar-width/scrollbar-color chuẩn: Chrome ≥121 ưu tiên chúng,
+     vẽ scrollbar mặc định CÓ MŨI TÊN dày cộp và bỏ qua toàn bộ ::-webkit-* bên dưới.
+     Giữ style webkit để thanh trượt mảnh, tròn, không mũi tên. */
   -webkit-overflow-scrolling: touch;
   scroll-behavior: auto; /* Required for high-performance immediate mouse-dragging */
   scroll-snap-type: x proximity;
@@ -58,17 +197,32 @@
   scroll-snap-align: center;
 }
 
+/* Mobile: lá số fit toàn bộ màn hình (không cuộn ngang) — như app tham chiếu.
+   Board bỏ min-w 900px, cell thu gọn, font siêu nhỏ; desktop giữ nguyên. */
 @media (max-width: 639px) {
+  .chart-scroll-container {
+    overflow-x: hidden;
+    touch-action: auto;
+  }
+  .chart-board-snap {
+    min-width: 0;
+    width: 100%;
+    gap: 2px;
+  }
   .chart-palace-cell {
-    font-size: 0.625rem;
+    font-size: 7.5px;
+    padding: 2px;
+    min-height: 104px;
   }
   .chart-palace-cell .chart-star-major {
-    font-size: 0.6875rem;
+    font-size: 7.5px;
+    max-height: 86px;
+    gap: 2px;
   }
 }
 
 .chart-scroll-container::-webkit-scrollbar {
-  height: 9px; /* Slightly taller scrollbar for horizontal scrolling to make it extremely easy to click and slide */
+  height: 6px; /* nhỏ gọn, đồng bộ với scrollbar toàn cục */
 }
 
 .chart-scroll-container::-webkit-scrollbar-track {

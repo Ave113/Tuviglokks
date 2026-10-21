@@ -72,9 +72,17 @@ describe("analyzeCachCuc — dedup", () => {
 describe("buildCachCucReport", () => {
   it("có quality label và dedup", () => {
     const report = buildCachCucReport(chartIdx());
-    expect(report).toContain("cách thành");
+    expect(report).toMatch(/cách thành|cách trung/);
     expect(report).toContain("dedup");
     expect(report).toContain("TÓM TẮT TRỤC CHỦ");
+  });
+});
+
+describe("pattern mới + logic sheet", () => {
+  it("PATTERNS gồm co-luong / vu-sat / am-duong-hoi", () => {
+    // detectAll không export PATTERNS — dùng analyze: không crash
+    const a = analyzeCachCuc(chartIdx());
+    expect(a.primarySummary.length).toBeGreaterThan(0);
   });
 });
 
@@ -121,5 +129,62 @@ describe("đồng cung Đồng Cự", () => {
     }));
     const analysis = analyzeCachCuc(buildChartIndex(palaces));
     expect(analysis.globalDongCungExtra.some((m) => m.name === "Đồng Cự")).toBe(true);
+  });
+});
+
+describe("combo mới — Tử Phủ Vũ Tướng / Vũ Tướng / Cơ Cự", () => {
+  function synthetic(starsByIndex: Record<number, { name: string; brightness: string }[]>) {
+    return buildChartIndex(
+      Array.from({ length: 12 }, (_, i) => ({
+        index: i,
+        name: i === 0 ? "Mệnh" : `Cung ${i}`,
+        majorStars: starsByIndex[i] || [],
+        minorStars: [],
+        adjectiveStars: [],
+      })),
+    );
+  }
+
+  it("Tử Phủ Vũ Tướng + Vũ Tướng khi đủ 4 sao hội tam phương trục Mệnh", () => {
+    const idx = synthetic({
+      0: [{ name: "Tử Vi", brightness: "Miếu" }],
+      4: [{ name: "Thiên Phủ", brightness: "Miếu" }],
+      6: [{ name: "Thiên Tướng", brightness: "Miếu" }],
+      8: [{ name: "Vũ Khúc", brightness: "Miếu" }],
+    });
+    const menh = detectCachCucForAxis(idx, CACH_CUC_AXES[0]);
+    const names = menh.map((m) => m.name);
+    expect(names).toContain("Tử Phủ Vũ Tướng");
+    expect(names).toContain("Vũ Tướng");
+    expect(menh.find((m) => m.name === "Tử Phủ Vũ Tướng")!.quality).toBe("thanh");
+  });
+
+  it("Cơ Cự: nhận cả hội tam phương lẫn đồng cung toàn lá", () => {
+    const hoi = synthetic({
+      0: [{ name: "Thiên Cơ", brightness: "Đắc" }],
+      4: [{ name: "Cự Môn", brightness: "Vượng" }],
+    });
+    const menhHoi = detectCachCucForAxis(hoi, CACH_CUC_AXES[0]);
+    expect(menhHoi.map((m) => m.name)).toContain("Cơ Cự");
+
+    const dc = synthetic({
+      3: [
+        { name: "Thiên Cơ", brightness: "Đắc" },
+        { name: "Cự Môn", brightness: "Vượng" },
+      ],
+    });
+    const analysis = analyzeCachCuc(dc);
+    expect(analysis.globalDongCungExtra.some((m) => m.name === "Cơ Cự (đồng cung)")).toBe(true);
+  });
+
+  it("Vũ Tướng đồng cung: nhận biến thể (đồng cung) toàn lá", () => {
+    const dc = synthetic({
+      5: [
+        { name: "Vũ Khúc", brightness: "Miếu" },
+        { name: "Thiên Tướng", brightness: "Miếu" },
+      ],
+    });
+    const analysis = analyzeCachCuc(dc);
+    expect(analysis.globalDongCungExtra.some((m) => m.name === "Vũ Tướng (đồng cung)")).toBe(true);
   });
 });

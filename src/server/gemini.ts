@@ -141,6 +141,29 @@ export const generateWithFallback = async (
   }
 };
 
+/** Chuẩn hóa message lỗi từ @google/genai / fetch. */
+export function extractRawErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message || error.name;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Lỗi xử lý trên máy chủ.";
+  }
+}
+
+export function isApiKeyInvalidError(rawMsg: string): boolean {
+  const m = rawMsg.toLowerCase();
+  return (
+    m.includes("api key not valid") ||
+    m.includes("api_key_invalid") ||
+    m.includes("invalid api key") ||
+    m.includes("api key expired") ||
+    (m.includes("invalid_argument") && m.includes("api key")) ||
+    m.includes("permission_denied") && m.includes("api key")
+  );
+}
+
 export const sendAiError = (res: Response, error: unknown) => {
   if (error instanceof AiGenerationError) {
     sendAiGenerationError(res, error);
@@ -148,17 +171,20 @@ export const sendAiError = (res: Response, error: unknown) => {
   }
 
   console.error("Lỗi AI:", error);
-  const rawMsg =
-    (error as { message?: string })?.message ||
-    (typeof error === "string" ? error : JSON.stringify(error)) ||
-    "Lỗi xử lý trên máy chủ.";
+  const rawMsg = extractRawErrorMessage(error);
   let errMsg = "Đã xảy ra lỗi khi xử lý yêu cầu AI. Vui lòng thử lại sau.";
   let isRateLimit = false;
   let retryAfter = 30;
-  if (isBusyError(rawMsg)) {
+  let status = 500;
+
+  if (isApiKeyInvalidError(rawMsg)) {
+    status = 401;
+    errMsg =
+      "API Key Gemini không hợp lệ hoặc đã hết hạn. Hãy kiểm tra lại key tại Google AI Studio, dán vào ô BYOK rồi bấm LƯU, sau đó thử lại.";
+  } else if (isBusyError(rawMsg)) {
     isRateLimit = true;
     retryAfter = 15;
-    errMsg = "Hệ thống Google Gemini API đang quá tải tạm thời (503). Vui lòng đợi ~15 giây rồi gửi lại, hoặc chuyển sang Gemini 3.1 Flash Lite, hoặc dùng API Key cá nhân (BYOK).";
+    errMsg = "Hệ thống Google Gemini API đang quá tải tạm thời (503). Vui lòng đợi ~15 giây rồi gửi lại, hoặc chuyển sang Gemini 3.5 Flash Lite, hoặc dùng API Key cá nhân (BYOK).";
   } else if (rawMsg.includes("RESOURCE_EXHAUSTED") || rawMsg.includes("quota") || rawMsg.includes("429") || rawMsg.toLowerCase().includes("limit")) {
     isRateLimit = true;
     const secondsMatch = rawMsg.match(/retry in\s+([0-9.]+)\s*s/i);
@@ -167,7 +193,7 @@ export const sendAiError = (res: Response, error: unknown) => {
     else if (delayMatch) retryAfter = parseInt(delayMatch[1], 10);
     errMsg = `Đã vượt hạn mức lượt dùng (Quota / Rate Limit) tạm thời. Hãy đợi ~${retryAfter} giây rồi thử lại, hoặc dùng API Key cá nhân (BYOK).`;
   }
-  res.status(500).json({ error: errMsg, rateLimited: isRateLimit, retryAfter });
+  res.status(status).json({ error: errMsg, rateLimited: isRateLimit, retryAfter });
 };
 
 /** Verbose interpret error messages (original /api/interpret behavior). */
@@ -178,22 +204,26 @@ export const sendInterpretAiError = (res: Response, error: unknown) => {
   }
 
   console.error("Lỗi luận giải Tử Vi:", error);
-  const rawMsg =
-    (error as { message?: string })?.message ||
-    (typeof error === "string" ? error : JSON.stringify(error)) ||
-    "Lỗi xử lý luận giải trên máy chủ.";
+  const rawMsg = extractRawErrorMessage(error);
   let errMsg = "Đã xảy ra lỗi khi xử lý yêu cầu AI. Vui lòng thử lại sau.";
   let isRateLimit = false;
   let retryAfter = 30;
+  let status = 500;
 
-  if (isBusyError(rawMsg)) {
+  if (isApiKeyInvalidError(rawMsg)) {
+    status = 401;
+    errMsg =
+      "API Key Gemini không hợp lệ hoặc đã hết hạn.\n\n" +
+      "👉 Dán lại key từ Google AI Studio vào ô BYOK (thanh trên) → bấm LƯU → thử luận giải lại.\n" +
+      "Key lỗi / copy thiếu / key project khác sẽ bị Google từ chối (không phải lỗi an lá số).";
+  } else if (isBusyError(rawMsg)) {
     isRateLimit = true;
     retryAfter = 15;
     errMsg = `Hệ thống Google Gemini API (Phía Máy Chủ Google) hiện đang bị quá tải tạm thời (Trạng thái 503 — High Demand).\n\n` +
       `🔴 **LƯU Ý QUAN TRỌNG:** Đây hoàn toàn KHÔNG PHẢI lỗi do website hay ứng dụng này bị đơ/hỏng, mà do hàng triệu người trên thế giới đang cùng truy cập vào máy chủ miễn phí của Google dẫn tới nghẽn mạng cục bộ.\n\n` +
       `👉 **3 BƯỚC KHẮC PHỤC NGAY LẬP TỨC:**\n` +
-      `1. **Lách nghẽn nhanh nhất:** Hãy nhấp chọn mô hình **Gemini 3.1 Lite 🚀** ở khung lựa chọn bên dưới rồi bấm gửi lại (Mô hình này có hàng chờ riêng của Google, tải trọng nhẹ hơn nên phản hồi cực kỳ nhanh!).\n` +
-      `2. **Thử lại tạm thời:** Đợi khoảng 15 giây (bộ đếm giây hiển thị ngay trên màn hình) rồi bấm 'Khởi động AI Luận Giải Tử Vi' một lần nữa để thử lại.\n` +
+      `1. **Lách nghẽn nhanh nhất:** Hãy nhấp chọn mô hình **Gemini 3.5 Flash Lite 🚀** ở khung lựa chọn bên dưới rồi bấm gửi lại (Mô hình này có hàng chờ riêng của Google, tải trọng nhẹ hơn nên phản hồi cực kỳ nhanh!).\n` +
+      `2. **Thử lại tạm thời:** Đợi khoảng 15 giây (bộ đếm giây hiển thị ngay trên màn hình) rồi bấm 'Khởi Động Luận Giải' một lần nữa để thử lại.\n` +
       `3. **Giải phóng băng thông riêng:** Hãy đăng ký một **Google Gemini API Key** riêng hoàn toàn MIỄN PHÍ chỉ mất 30 giây tại nền tảng Google AI Studio, sau đó dán vào khung dán API Key cá nhân ở thanh màu tối trên cùng rồi bấm nút "LƯU". Bản mệnh của bạn sẽ được kết nối bằng đường truyền riêng độc bản chính chủ, không bao giờ lo bị nghẽn mạng chung nữa!`;
   } else if (
     rawMsg.includes("RESOURCE_EXHAUSTED") ||
@@ -212,12 +242,12 @@ export const sendInterpretAiError = (res: Response, error: unknown) => {
 
     errMsg = `Hệ thống nhận thấy số lượng yêu cầu của quý vị hoặc máy chủ đang vượt quá hạn mức lượt dùng (Quota / Rate Limit) tạm thời.\n\n` +
       `👉 **GIẢI PHÁP LẬP TỨC:**\n` +
-      `1. Hãy đợi khoảng ${retryAfter} giây rồi bấm nút 'Khởi động AI Luận Giải Tử Vi' để gửi lại một lần nữa (bộ đếm giây tự động hiển thị trên màn hình).\n` +
-      `2. **Lách nghẽn mượt mà:** Chuyển sang mô hình khác như **Gemini 3.1 Flash Lite** bên dưới (thường có hạn mức miễn phí riêng biệt ít bị nghẽn hơn).\n` +
+      `1. Hãy đợi khoảng ${retryAfter} giây rồi bấm nút 'Khởi Động Luận Giải' để gửi lại một lần nữa (bộ đếm giây tự động hiển thị trên màn hình).\n` +
+      `2. **Lách nghẽn mượt mà:** Chuyển sang mô hình khác như **Gemini 3.5 Flash Lite** bên dưới (thường có hạn mức miễn phí riêng biệt ít bị nghẽn hơn).\n` +
       `3. **Tối ưu nhất:** Hãy điền khóa API Gemini chính chủ của riêng bạn vào hộp **Nhập API Key cá nhân (BYOK)** ở thanh màu sẫm trên cùng. Cách tạo khóa hoàn toàn miễn phí, nhanh chóng tại Google AI Studio. Khi điền khóa cá nhân, quý vị sẽ có luồng gọi trực tiếp độc lập tuyệt đối và tránh được cảnh báo nghẽn mạng chung.`;
   }
 
-  res.status(500).json({
+  res.status(status).json({
     error: errMsg,
     rateLimited: isRateLimit,
     retryAfter,

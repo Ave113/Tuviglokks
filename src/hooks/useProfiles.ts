@@ -1,5 +1,5 @@
 import React from "react";
-import type { ChatTurn, SavedInterpretation, SavedProfile } from "../types";
+import type { ChatTurn, InterpretChartData, SavedInterpretation, SavedProfile } from "../types";
 import { safeSetLocalStorage } from "../utils/storage";
 
 export interface SaveProfileInput {
@@ -14,6 +14,8 @@ export interface SaveProfileInput {
   modelUsedResult: string;
   transitYear: number;
   chatTurns: ChatTurn[];
+  /** Payload lá số đã luận — bắt buộc để chat restore đúng sau refresh. */
+  chartData?: InterpretChartData | null;
 }
 
 export function useProfiles(transitYear: number) {
@@ -30,12 +32,17 @@ export function useProfiles(transitYear: number) {
     }
   }, []);
 
+  /**
+   * Cập nhật sớ/chat/chartData trên hồ sơ.
+   * `profileId` tuỳ chọn — truyền tường minh khi vừa setActiveProfileId (state chưa flush).
+   */
   const persistInterpretationToProfile = React.useCallback(
-    (patch: Partial<SavedInterpretation>) => {
-      if (!activeProfileId) return;
+    (patch: Partial<SavedInterpretation>, profileId?: string | null) => {
+      const id = profileId ?? activeProfileId;
+      if (!id) return;
       setSavedProfiles((prev) => {
         const updated = prev.map((p) => {
-          if (p.id !== activeProfileId) return p;
+          if (p.id !== id) return p;
           const base: SavedInterpretation = p.savedInterpretation || {
             content: "",
             modelUsed: "",
@@ -73,6 +80,7 @@ export function useProfiles(transitYear: number) {
               transitYear: input.transitYear,
               createdAt: new Date().toISOString(),
               chat: input.chatTurns,
+              ...(input.chartData ? { chartData: input.chartData } : {}),
             },
           }
         : {}),

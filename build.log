@@ -1,18 +1,0 @@
-
-> tuvi-app@0.0.0 build
-> vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs
-
-vite v8.0.16 building client environment for production...
-[2Ktransforming...✓ 1941 modules transformed.
-rendering chunks...
-computing gzip size...
-dist/index.html                     1.21 kB │ gzip:   0.66 kB
-dist/assets/index-CO2EIfAH.css     72.69 kB │ gzip:  12.96 kB
-dist/assets/index-CzkvzEys.js   1,189.37 kB │ gzip: 380.02 kB
-
-✓ built in 1.47s
-
-  dist\server.cjs      306.9kb
-  dist\server.cjs.map  463.5kb
-
-Done in 44ms

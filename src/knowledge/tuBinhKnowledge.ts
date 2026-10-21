@@ -1,5 +1,9 @@
 // ============================================================================
-// KHO TRI THỨC TỬ BÌNH (BÁT TỰ) SÂU — Cấp 2 (RAG-lite).
+// KHO TRI THỨC TỬ BÌNH (BÁT TỰ) SÂU — Cấp 3 (RAG-lite).
+//
+// Cấp 3 bổ sung: tổ hợp Thập Thần hay gặp, Thần Sát chi tiết hơn, 10 can Nhật
+// Chủ, hôn nhân/sức khỏe/con cái thực chiến, khởi vận–tiết khí, và thêm cầu nối
+// TV (Tật–Ấn–Di–Mã). Vẫn gọn token, không nhồi nguyên văn cổ thư.
 //
 // Nguồn: bộ tài liệu Tử Bình hợp nhất của dự án (Tử Bình Chân Thuyên, Trích
 // Thiên Tủy, Cùng Thông Bảo Giám), viết lại tiếng Việt. Mục tiêu: cho AI "luận
@@ -286,6 +290,219 @@ export const TU_BINH_KNOWLEDGE: KnowledgeEntry[] = [
       "hậu thắng Phù ức' trong cục cực đoan: thân nhược nhưng sinh tháng Tý (quá lạnh) vẫn ưu tiên Hỏa " +
       "sưởi ấm.",
   },
+
+  // ===== NÂNG CẤP: đối chiếu thực chiến TV ↔ BT =====
+  {
+    id: "tb-cheo-menh-nhat-chu",
+    tags: [
+      "đối chiếu", "nhật chủ", "mệnh", "thân", "tử vi", "tính cách", "thất sát",
+      "tham lang", "thiên phủ", "nền tảng",
+    ],
+    title: "Chéo: Nhật Chủ ↔ chính tinh Mệnh/Thân",
+    source: SRC,
+    content:
+      "Đặt Nhật Chủ (hành–tính) cạnh chính tinh Mệnh/Thân Tử Vi: trùng hướng (vd Thất Sát Mệnh + " +
+      "Sát/Quan đắc dụng BT) → khẳng định cốt cách; lệch (Phủ thủ thành TV vs Thân vượng BT thích " +
+      "Tài–Quan) → phân 'mặt ngoài / động lực gốc'. Không lấy BT phủ nhận sao TV; chỉ chấm nhất quán.",
+  },
+  {
+    id: "tb-cheo-tai-quan",
+    tags: [
+      "đối chiếu", "tài", "quan", "tài bạch", "quan lộc", "chính tài", "thất sát",
+      "chính quan", "tử vi", "sự nghiệp", "tiền bạc",
+    ],
+    title: "Chéo: Tài–Quan BT ↔ cung Tài–Quan TV",
+    source: SRC,
+    content:
+      "BT Tài đắc dụng + thân gánh được ⋀ TV Tài/Quan sáng (Lộc/Quyền/Phủ/Vũ…) → tiền–danh vững. " +
+      "BT Tài đa thân nhược ⋀ TV sinh tài mạnh → vào dễ giữ khó. BT Sát/Quan vô chế ⋀ TV Quan toàn " +
+      "sát Kỵ → áp lực chức vụ/thị phi. Gắn nhãn [Đồng thuận]/[Bổ sung]/[Mâu thuẫn] khi luận chéo.",
+  },
+  {
+    id: "tb-cheo-van-han-thoi-diem",
+    tags: [
+      "đối chiếu", "đại vận", "đại hạn", "lưu niên", "hỷ dụng", "kỵ thần",
+      "hóa kỵ", "hóa lộc", "thời điểm",
+    ],
+    title: "Chéo thời điểm: Đại Vận BT ↔ Đại Hạn/Lưu TV",
+    source: SRC,
+    content:
+      "Năm/đoạn mạnh khi: vận BT vào Hỷ–Dụng ⋀ lưu TV Lộc/Quyền/Khoa vào cung trọng. " +
+      "Năm yếu khi: vận BT động Kỵ ⋀ lưu TV Kỵ/Tuế/Tang/Không vào Mệnh–Tài–Quan. " +
+      "Một hệ xấu một hệ tốt → hạ giọng, nói 'có cửa nhưng phải chọn lĩnh vực'. Neo đúng năm hạn " +
+      "và trụ đại vận trong dữ liệu máy.",
+  },
+  {
+    id: "tb-than-vuong-tai-nhuoc-tv",
+    tags: [
+      "thân vượng", "thân nhược", "tài đa thân nhược", "sinh tài", "thủ tài",
+      "tử vi", "tài bạch", "nền tảng",
+    ],
+    title: "Thân gánh Tài (BT) × hai trục tài (TV)",
+    source: SRC,
+    content:
+      "Thân nhược Tài vượng ≈ Phú ốc bần nhân: cần Ấn/Tỷ hoặc vận trợ thân. Map TV: trục Sinh Tài " +
+      "mạnh + Thủ Tài yếu ≈ kiếm được không giữ — trùng BT thân nhược. Thân vượng Tài đắc dụng + " +
+      "TV Thủ Tài có Lộc/Phủ ≈ giữ của tốt. Luôn nói xu hướng, không kết 'chắc nghèo/chắc giàu'.",
+  },
+  {
+    id: "tb-nu-menh-quan-sat",
+    tags: [
+      "nữ", "chồng", "chính quan", "thất sát", "phu thê", "hôn nhân", "tử vi",
+    ],
+    title: "Nữ mệnh: Quan–Sát BT ↔ cung Phu Thê TV",
+    source: SRC,
+    content:
+      "Nữ: Chính Quan/Thất Sát liên hôn phối–chồng. Quan đắc dụng ôn hòa; Sát đắc dụng quyết liệt " +
+      "cần chế. Đối chiếu Phu Thê TV: sao + Kỵ/Hảo/đào hoa. Hai hệ cùng tốt/xấu → chắc giọng hơn; " +
+      "lệch → phân giai đoạn (đại hạn Phối vs đại vận Quan). Tôn trọng độ tuổi — không ép 'cưới/ly' " +
+      "khi chưa hợp vòng đời.",
+  },
+  {
+    id: "tb-dung-than-thuc-chien",
+    tags: ["dụng thần", "hỷ thần", "kỵ thần", "điều hậu", "phù ức", "nền tảng", "hỷ dụng"],
+    title: "Dụng–Hỷ–Kỵ thực chiến (nhắc)",
+    source: SRC,
+    content:
+      "Sau Vượng–Nhược: chọn Dụng (cứu cục). Điều hậu (nóng/lạnh mùa) có thể thắng Phù ức khi cực " +
+      "đoan. Hỷ = sinh/trợ Dụng; Kỵ = phá Dụng/khuynh đảo. Mọi Thập Thần/Thần Sát chỉ 'tốt/xấu' sau " +
+      "bước này. Khi viết đối chiếu TV, tránh dùng 'Hỷ Dụng' như tên sao Vận.",
+  },
+
+  // ===== CẤP 3 — tổ hợp · thần sát · thực chiến chủ đề · cầu nối TV =====
+  {
+    id: "tb-to-hop-thap-than",
+    tags: [
+      "sát ấn", "thực chế sát", "thương quan đới tài", "tài quan", "quan ấn",
+      "kiêu đoạt thực", "thương quan kiến quan", "cách cục", "thập thần", "nền tảng",
+    ],
+    title: "Tổ hợp Thập Thần hay gặp (cát/hung tùy Hỷ–Kỵ)",
+    source: SRC,
+    content:
+      "Sát Ấn tương sinh: Sát sinh Ấn sinh thân → áp lực thành quyền/học (khi Ấn đắc). " +
+      "Thực chế Sát: Thực/Thương khắc Sát → dũng có phanh. Thương Quan đới Tài: tài hoa sinh tiền. " +
+      "Tài sinh Quan / Quan Ấn: đường công danh có 'cầu'. Kiêu đoạt Thực: Ấn khắc Thực → kẹt biểu đạt. " +
+      "Thương Quan kiến Quan: thị phi khi Quan là Dụng; nếu Quan là Kỵ thì Thương có thể 'khử Quan' tốt. " +
+      "Chỉ gán tổ hợp khi can/chi/Thập Thần trên lá máy xác nhận — không bịa đủ bộ.",
+  },
+  {
+    id: "tb-than-sat-mo-rong",
+    tags: [
+      "thần sát", "hoa cái", "văn xương", "thiên đức", "nguyệt đức", "kiếp sát",
+      "đào hoa", "dương nhận", "lộc thần", "quý nhân",
+    ],
+    title: "Thần Sát mở rộng — màu sắc, không thay Dụng",
+    source: SRC,
+    content:
+      "Hoa Cái: tâm linh–nghệ thuật–cô độc có chất. Văn Xương (BT): học–thi cử–giấy tờ. " +
+      "Thiên Đức/Nguyệt Đức: hóa giải nhẹ hung, quý nhân ôn. Kiếp Sát: biến động mạnh, võ–pháp–tốc. " +
+      "Cùng Đào Hoa/Dương Nhận/Lộc/Quý: chỉ 'sơn' thêm sau Hỷ–Kỵ. Cát thần lâm Không giảm cát; " +
+      "hung lâm Không giảm hung. Không lấy một Thần Sát kết cả đời.",
+  },
+  {
+    id: "tb-nhat-chu-10-can",
+    tags: [
+      "nhật chủ", "giáp", "ất", "bính", "đinh", "mậu", "kỷ", "canh", "tân",
+      "nhâm", "quý", "tính cách", "thiên can",
+    ],
+    title: "10 Nhật Chủ — khí chất + nghề gợi ý (rất gọn)",
+    source: SRC,
+    content:
+      "Giáp Mộc: lãnh đạo–khởi nghiệp thẳng. Ất: linh hoạt–phụ tá–thẩm mỹ. Bính: truyền thông–nóng. " +
+      "Đinh: chuyên môn tinh–y–lửa nhỏ. Mậu: quản trị–đất–chịu tải. Kỷ: chăm sóc–nông–dịch vụ. " +
+      "Canh: kỹ thuật–pháp–cắt gọt. Tân: tinh xảo–thời trang–sĩ. Nhâm: logistics–trí tuệ–biến. " +
+      "Quý: nghiên cứu–ẩm–cảm xúc. Gợi ý nghề chỉ khi khớp vượng nhược + Tài/Quan/Ấn trên lá.",
+  },
+  {
+    id: "tb-hon-nhan-nam-nu",
+    tags: [
+      "hôn nhân", "vợ", "chồng", "chính tài", "thiên tài", "chính quan", "thất sát",
+      "nhật chi", "phu thê", "nữ", "nam",
+    ],
+    title: "Hôn nhân thực chiến (nam Tài / nữ Quan–Sát)",
+    source: SRC,
+    content:
+      "Nam: Chính Tài ≈ vợ chính–ổn; Thiên Tài ≈ duyên rộng–kinh doanh–dễ đa mối nếu Kỵ. " +
+      "Nhật chi là cung phối: hợp/xung/hình với Nhật can + Tài tinh quyết êm/ổn. " +
+      "Nữ: Chính Quan ≈ chồng đoan; Thất Sát ≈ mạnh–áp — cần Thực chế hoặc Ấn hóa. " +
+      "Quan/Sát nhiều vô chế → ải hôn; Tài nhiều thân nhược (nam) → vất vì vợ/tiền. Xu hướng, không án ly/cưới.",
+  },
+  {
+    id: "tb-suc-khoe-ngu-hanh",
+    tags: [
+      "sức khỏe", "tật", "ngũ hành", "thất sát", "dương nhận", "thân nhược",
+      "xung", "khố", "tật ách",
+    ],
+    title: "Sức khỏe ngũ hành & Sát (xu hướng, không y khoa)",
+    source: SRC,
+    content:
+      "Hành cực vượng/suy gợi tạng phủ theo ngũ hành cổ (chỉ tham khảo). Sát công thân + thân nhược " +
+      "vô chế → ải áp lực/tai nạn xu hướng. Dương Nhận–xung–Kiếp → cẩn dao kéo/va chạm khi vận động. " +
+      "Khố Thổ xung đôi khi 'mở bệnh căn' tiêu hóa–da–xương. CẤM chẩn bệnh / hẹn ngày; khuyên khám đúng khoa.",
+  },
+  {
+    id: "tb-con-cai-thoi-tru",
+    tags: [
+      "con cái", "thời trụ", "thực thần", "thương quan", "tử tức", "hậu vận", "nữ",
+    ],
+    title: "Con cái & Thời trụ",
+    source: SRC,
+    content:
+      "Thời trụ: quả / 46+ / con cháu–di sản. Thực Thương (đặc biệt nữ) liên biểu đạt–con. " +
+      "Thời vượng đắc dụng + không bị khắc nặng → duyên con/trò dễ nói hơn; Thời khắc kỵ/xung " +
+      "mạnh → ải nuôi dạy hoặc muộn (xu hướng). Không kết tuyệt đối 'vô tự'.",
+  },
+  {
+    id: "tb-khoi-van-tiet-khi",
+    tags: [
+      "khởi vận", "tiết khí", "đại vận", "thuận", "nghịch", "nguyệt trụ", "tuổi",
+    ],
+    title: "Khởi Đại Vận & tiết khí (khung)",
+    source: SRC,
+    content:
+      "Nam dương niên / nữ âm niên → thuận; nam âm / nữ dương → nghịch, từ Nguyệt trụ. " +
+      "Đếm ngày sinh → tiết kế (thuận) hoặc tiết trước (nghịch); ~3 ngày ≈ 1 tuổi khởi vận " +
+      "(quy ước phổ biến — bám số máy nếu đã tính). Sai tiết khí = lệch cả dải 10 năm — " +
+      "khi nghi ngờ, nói 'mốc khởi vận cần đối chiếu lịch tiết'.",
+  },
+  {
+    id: "tb-xung-hop-su-kien",
+    tags: [
+      "xung", "hợp", "tuế vận", "lưu niên", "sự kiện", "động", "hôn nhân", "chuyển nhà",
+    ],
+    title: "Xung–Hợp lưu niên: gợi sự kiện (không định mệnh)",
+    source: SRC,
+    content:
+      "Tuế xung Nhật/Nguyệt: năm đổi việc–chỗ–tình cảm dễ nổi. Hợp Nhật: duyên–hợp đồng–kết nối " +
+      "(Hỷ thì tốt, Kỵ thì dính). Xung khố: động đất đai/tiền tủ. Gắn chủ đề theo Thập Thần bị " +
+      "động (Tài→tiền/vợ; Quan→chức/chồng; Ấn→học/mẹ…). Chỉ nêu khi năm/đại vận trong dữ liệu xác nhận.",
+  },
+  {
+    id: "tb-cheo-tat-an-di",
+    tags: [
+      "đối chiếu", "tật ách", "phúc đức", "thiên di", "ấn", "dịch mã", "tử vi",
+      "sức khỏe", "đi lại",
+    ],
+    title: "Chéo: Tật–Phúc–Di TV ↔ Ấn–Sát–Mã BT",
+    source: SRC,
+    content:
+      "Tật Ách TV xấu ⋀ Sát/Nhận/thân nhược BT → nhấn sức–stress (không bệnh danh). " +
+      "Phúc Đức sáng ⋀ Ấn đắc → nội lực–che chở. Di có Mã TV ⋀ Dịch Mã BT → năm/đoạn dễ " +
+      "đổi chỗ–xuất ngoại khi vận Hỷ. Gắn nhãn Đồng thuận/Bổ sung/Mâu thuẫn.",
+  },
+  {
+    id: "tb-cheo-hoc-quan",
+    tags: [
+      "đối chiếu", "học vấn", "quan lộc", "ấn", "quan", "hóa khoa", "văn xương",
+      "tử vi", "sự nghiệp",
+    ],
+    title: "Chéo: học–danh TV ↔ Ấn–Quan BT",
+    source: SRC,
+    content:
+      "Ấn + Khoa/Xương TV → học–bằng–danh văn. Quan Ấn tương sinh BT + Quan Lộc TV sáng → " +
+      "cửa công chức/quản trị. Thương Quan đắc + thiếu Ấn ⋀ TV Văn tinh yếu → giỏi thực chiến " +
+      "hơn đường thi cử. Không ép 'phải thi' nếu lá nghiêng kỹ năng.",
+  },
 ];
 
 // ----------------------------------------------------------------------------
@@ -312,15 +529,16 @@ const ALWAYS_TB = new Set([
   "tb-nap-am-dac-that",
   "tb-trinh-tu",
   "tb-kinh-nghiem",
+  "tb-to-hop-thap-than", // Cấp 3: tổ hợp hay gặp — khung an toàn khi luận Thập Thần
 ]);
 
 /**
  * Trả về top-N mẫu tri thức Tử Bình liên quan nhất tới bối cảnh lá số.
  * Điểm = số thẻ trùng (khớp lỏng) + bắt từ khóa trong query.
  * Luôn ưu tiên đính kèm các mẫu nền tảng (vượng-nhược, dụng thần, hỷ-kỵ,
- * trình tự, kinh nghiệm) để AI có khung luận chuẩn.
+ * trình tự, kinh nghiệm, tổ hợp) để AI có khung luận chuẩn.
  */
-export function retrieveTuBinh(ctx: RetrieveTuBinhContext, topN = 9): KnowledgeEntry[] {
+export function retrieveTuBinh(ctx: RetrieveTuBinhContext, topN = 12): KnowledgeEntry[] {
   const needles = new Set<string>();
   [...(ctx.shiShen ?? []), ...(ctx.elements ?? []), ...(ctx.topics ?? [])]
     .forEach((x) => needles.add(norm(x)));
@@ -364,7 +582,7 @@ export function tuBinhToPromptText(entries: KnowledgeEntry[]): string {
     .map((e) => `• [${e.title}]: ${e.content}`)
     .join("\n");
   return (
-    `=== KHO TRI THỨC TỬ BÌNH (BÁT TỰ) SÂU — đã truy hồi theo lá số ===\n` +
+    `=== KHO TRI THỨC TỬ BÌNH (BÁT TỰ) SÂU — Cấp 3 — đã truy hồi theo lá số ===\n` +
     `(Nguồn: ${SRC}. Dùng làm "sách" để luận Bát Tự CÓ CĂN CỨ, KHÔNG bịa; ` +
     `mọi kết luận chỉ "CÓ XU HƯỚNG", tốt/xấu TÙY Hỷ–Kỵ & Vượng–Suy toàn cục.)\n` +
     body

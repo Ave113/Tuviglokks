@@ -1,14 +1,416 @@
 import React from "react";
-import ReactMarkdown from "react-markdown";
-import { Sparkles, Brain, Key, AlertTriangle, Eye, EyeOff, FileText, CheckCircle, RefreshCw, BookOpen, Volume2, VolumeX, ArrowLeft, X, Copy, Download, Send, MessageCircle } from "lucide-react";
+import { Sparkles, Brain, Key, AlertTriangle, Eye, EyeOff, FileText, CheckCircle, RefreshCw, BookOpen, ArrowLeft, Copy, Download, Send, MessageCircle, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Radar } from "lucide-react";
 import {
   GEMINI_MODEL_FLASH,
   GEMINI_MODEL_FLASH_LITE,
   GEMINI_MODEL_LABELS,
   type GeminiModelSelection,
 } from "../constants/geminiModels";
-import type { ChatTurn } from "../types";
+import type { ChatTurn, InterpretStructureIssues } from "../types";
+import { clearByokKey, saveByokKey } from "../utils/byokStorage";
+import { distillInterpretation } from "../utils/zenDistill";
 import { ChatAnswer } from "./ChatAnswer";
+import { SafeMarkdown } from "./SafeMarkdown";
+
+// ============================================================================
+// PROGRESSIVE DISCLOSURE — tách bài luận thành các phần gập/mở được.
+// Chỉ bọc UI quanh nội dung gốc (vẫn render bằng SafeMarkdown), KHÔNG đổi chữ.
+// Bài không tách được phần nào → fallback render nguyên văn như cũ.
+// ============================================================================
+
+interface InterpSection {
+  /** id ổn định trong phạm vi 1 bài (dùng làm key React + trạng thái gập/mở). */
+  id: string;
+  /** Số thứ tự phần ("1"…"9") nếu heading có số; null với heading không số. */
+  num: string | null;
+  /** Tiêu đề phần (đã bỏ ** và dấu ":" cuối dòng). */
+  title: string;
+  /** Thân markdown của phần (không gồm dòng heading). */
+  body: string;
+}
+
+interface SplitInterpretationResult {
+  /** Đoạn mở bài (trước heading phần đầu tiên) — hiển thị luôn, không gập. */
+  opening: string;
+  sections: InterpSection[];
+}
+
+/** Khung hiện tại chỉ có 4 phần đánh số; heading 5+ là bài cũ/lỗi → không tách thành phần mới. */
+const MAX_NUMBERED_INTERPRET_PARTS = 4;
+
+/** Đa số chữ cái là IN HOA — heading phần chính trong bài luôn viết hoa toàn bộ. */
+const isMostlyUppercase = (s: string): boolean => {
+  const letters = s.replace(/[^\p{L}]/gu, "");
+  if (letters.length < 6) return false;
+  const uppers = letters.replace(/[^\p{Lu}]/gu, "").length;
+  return uppers / letters.length >= 0.6;
+};
+
+/**
+ * Nhận diện MỘT dòng heading "mở phần" trong bài luận — khoan dung với định dạng:
+ *  - `1. **TÊN PHẦN**`, `### 1. Tên phần`, `1) Tên phần`, `1 — Tên phần`
+ *  - `**PHẦN 0 — …**`, `## Phần 3: Vận trình`
+ *  - `**ĐỐI CHIẾU CHÉO…**`, `**KẾT LUẬN CUỐI…**`
+ * Không bắt buộc IN HOA hay đúng chữ "Phần". Dòng sub-item trong thân phần vẫn
+ * bị chặn bởi kiểm tra dãy số liên tục ở splitInterpretationSections.
+ */
+function matchSectionHeading(line: string): { num: string | null; title: string } | null {
+  const raw = line.trim();
+  if (!raw) return null;
+
+  const withoutQuote = raw.replace(/^>\s?/, "");
+  const isMarkdownHeading = /^#{1,6}\s+/.test(withoutQuote);
+  const t = withoutQuote.replace(/^#{1,6}\s+/, "").trim();
+  if (!t) return null;
+
+  const cleanTitle = (s: string) =>
+    s
+      .replace(/\*\*/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/[:：]\s*$/, "");
+
+  // Bóc lớp bold ngoài cùng: "**1. Tên phần**", "**PHẦN 3 — …**".
+  const boldOuter = t.match(/^\*\*(.+?)\*\*\s*[：:]?\s*$/);
+  const source = (boldOuter ? boldOuter[1] : t).trim();
+
+  // (1) "Phần N" — mọi cấp heading, hoa/thường, có hoặc không bold.
+  let m = source.match(/^phần\s*(\d{1,2})\b[\s:：.\-–—]*(.*)$/i);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    if (n === 0) return { num: null, title: cleanTitle(source) };
+    const rest = cleanTitle(m[2]);
+    return { num: String(n), title: rest || cleanTitle(source) };
+  }
+
+  // (2) Số thứ tự: "1. **…**", "### 1) …", "1 — …", "**1. …**".
+  m = source.match(/^(\d{1,2})\s*[.)]\s+(.+)$/);
+  if (!m) m = source.match(/^(\d{1,2})\s*[-–—]\s+(.+)$/);
+  if (m) {
+    const num = parseInt(m[1], 10);
+    const title = cleanTitle(m[2]);
+    const letters = title.replace(/[^\p{L}]/gu, "").length;
+    const looksLikeTitle =
+      letters >= 6 && letters <= 120 && title.split(/\s+/).filter(Boolean).length >= 2;
+    const hasStructureHint =
+      isMarkdownHeading || boldOuter !== null || isMostlyUppercase(title);
+    // Dòng thường "1. Bản sắc & cơ chế..." vẫn nhận nếu đủ ngắn, không phải câu văn.
+    const plainTitle = looksLikeTitle && !/[.!?]\s*$/.test(title);
+    if (num >= 1 && (hasStructureHint ? looksLikeTitle : plainTitle)) {
+      return { num: String(num), title };
+    }
+    return null;
+  }
+
+  // (3) Heading không số: Phần 0 / Chân dung / Kết luận cuối / Đối chiếu chéo.
+  if (
+    /^(?:phần\s*0|chân\s+dung|kết\s+luận\s+cuối)/i.test(source) ||
+    /^đối\s+chiếu\s+chéo/i.test(source)
+  ) {
+    return { num: null, title: cleanTitle(source) };
+  }
+
+  // (4) Heading Markdown IN HOA không số.
+  if (isMarkdownHeading && isMostlyUppercase(source)) {
+    return { num: null, title: cleanTitle(source) };
+  }
+  return null;
+}
+
+/** Tách bài luận thành đoạn mở bài + danh sách phần theo heading. Không ném lỗi với input bất kỳ. */
+export function splitInterpretationSections(md: string | null | undefined): SplitInterpretationResult {
+  const raw = String(md ?? "").replace(/\r\n?/g, "\n");
+  if (!raw.trim()) return { opening: "", sections: [] };
+
+  const openingLines: string[] = [];
+  const sections: InterpSection[] = [];
+  let current: InterpSection | null = null;
+  let inFence = false;
+  // Chỉ nhận dãy số liên tục 1,2,3… — tránh bắt nhầm sub-item "0."/"2."
+  // đứng giữa thân phần (vd checklist Tiểu hạn trong Phần 3).
+  let expectedNum = 1;
+  // Sau khi vào Kết luận, các dòng "1. **…**" là 5 ý chốt — không tách thành phần mới.
+  let inClosing = false;
+
+  for (const line of raw.split("\n")) {
+    if (/^\s*```/.test(line)) inFence = !inFence;
+
+    let hit: { num: string | null; title: string } | null = null;
+    if (!inFence) {
+      hit = matchSectionHeading(line);
+      if (inClosing && hit && hit.num !== null) hit = null;
+      if (hit && hit.num !== null) {
+        const n = parseInt(hit.num, 10);
+        if (
+          n < 1 ||
+          n > MAX_NUMBERED_INTERPRET_PARTS ||
+          (n !== expectedNum && n !== expectedNum + 1)
+        ) {
+          hit = null;
+        } else {
+          expectedNum = n + 1;
+        }
+      }
+    }
+
+    if (hit) {
+      if (hit.num === null && /kết\s*luận/i.test(hit.title)) inClosing = true;
+      if (current) sections.push(current);
+      current = { id: `phan-${sections.length}`, num: hit.num, title: hit.title, body: "" };
+    } else if (current) {
+      current.body += `${line}\n`;
+    } else {
+      openingLines.push(line);
+    }
+  }
+  if (current) sections.push(current);
+
+  return {
+    opening: openingLines.join("\n").trim(),
+    sections: sections.map((s) => ({ ...s, body: s.body.trim() })),
+  };
+}
+
+/** Ô gập/mở một phần luận giải — tiêu đề bấm được; nội dung bên trong vẫn SafeMarkdown nguyên vẹn. */
+const CollapsibleSection: React.FC<{
+  num: string | null;
+  title: string;
+  collapsed: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}> = ({ num, title, collapsed, onToggle, children }) => (
+  <div className="border border-stone-200 dark:border-neutral-800 rounded-xl overflow-hidden bg-white/70 dark:bg-neutral-950/30">
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={!collapsed}
+      className="w-full flex items-center gap-2.5 text-left px-3.5 py-2.5 hover:bg-stone-100/70 dark:hover:bg-neutral-900/60 transition-colors cursor-pointer"
+    >
+      {collapsed ? (
+        <ChevronRight className="w-4 h-4 shrink-0 text-stone-400" />
+      ) : (
+        <ChevronDown className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+      )}
+      {num !== null && (
+        <span className="shrink-0 w-6 h-6 grid place-items-center rounded-lg bg-indigo-600/10 text-indigo-700 dark:text-indigo-300 text-[11px] font-black">
+          {num}
+        </span>
+      )}
+      <span className="flex-1 min-w-0 text-xs sm:text-[13px] font-bold text-stone-800 dark:text-neutral-100 leading-snug">
+        {title}
+      </span>
+    </button>
+    {!collapsed && (
+      <div className="px-4 pb-4 pt-1 border-t border-stone-200 dark:border-neutral-800/70">
+        <div className="markdown-body reading-rhythm prose prose-stone dark:prose-invert max-w-none space-y-6">
+          {children}
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+// ============================================================================
+// RADAR 5 MIỀN ĐỜI — ước lượng cát/hung từng miền từ chính bài luận.
+// Đếm từ khóa cát/hung trong phần chuyên luận của miền (fallback: các dòng
+// nhắc miền trên toàn bài). SVG thuần — không thêm thư viện biểu đồ nào.
+// ============================================================================
+
+interface DomainScore {
+  key: string;
+  label: string;
+  /** 8–95; 50 = trung tính (bài không có tín hiệu nào cho miền này). */
+  score: number;
+  posHits: number;
+  negHits: number;
+}
+
+const RADAR_POS_KEYWORDS = [
+  "hóa lộc", "hóa quyền", "hóa khoa", "lưu lộc", "sinh lộc", "miếu", "đắc địa",
+  "đắc cách", "hanh thông", "hanh hiển", "hanh vận", "thuận", "ổn định",
+  "bền vững", "may mắn", "tin vui", "dồi dào", "giàu có", "phát đạt",
+  "thịnh vượng", "vượng khí", "cát", "khởi sắc", "cởi mở", "giải tỏa", "gỡ",
+  "thăng tiến", "thu hoạch", "ấm no", "trọn vẹn", "tỏa sáng", "tốt đẹp", "rực rỡ",
+];
+
+const RADAR_NEG_KEYWORDS = [
+  "kỵ", "hãm", "hãi", "tai họa", "sát tinh", "lục sát", "hao tài", "hao tổn",
+  "hao hụt", "hao của", "tán gia", "tự hao", "mất", "rủi ro", "trắc trở",
+  "đổ vỡ", "thất bại", "áp lực", "vất vả", "mệt mỏi", "ốm đau", "bệnh",
+  "tai nạn", "xung đột", "lục hại", "xung khắc", "ly hôn", "rạn nứt", "lục đục",
+  "bế tắc", "trì trệ", "cô đơn", "suy nhược", "trầm cảm", "kiện tụng",
+  "thị phi", "tránh", "cẩn trọng", "thận trọng", "phòng ngừa", "gãy", "nghiệt",
+  "bất an", "lo âu",
+];
+
+const RADAR_DOMAINS: { key: string; label: string; sectionKw: RegExp; lineKw: RegExp }[] = [
+  {
+    key: "tai-bach",
+    label: "Tài Bạch",
+    // Phần 2 (TỨ HÓA) là phần chuyên luận kênh lộc/tiền.
+    sectionKw: /tứ hóa|tự phi tứ hóa|độ sâu tứ hóa|tài bạch|tài lộc/i,
+    lineKw: /tài bạch|tiền|tài lộc|tài sản|thu nhập|điền trạch|kinh doanh|đầu tư|kiếm tiền|dòng tiền|chi tiêu/i,
+  },
+  {
+    key: "quan-loc",
+    label: "Quan Lộc",
+    // Phần 1 (TAM PHƯƠNG TỨ CHÍNH & THẾ ĐỨNG LÁ SỐ) là phần chuyên luận bản sắc/công danh.
+    sectionKw: /tam phương|thế đứng|quan lộc|công việc|sự nghiệp/i,
+    lineKw: /quan lộc|công việc|sự nghiệp|công danh|thăng tiến|thi cử|học hành|nghề nghiệp|đồng nghiệp|cấp trên|lãnh đạo/i,
+  },
+  {
+    key: "phu-the",
+    label: "Phu Thê",
+    sectionKw: /phu thê|tình cảm|gia đạo|đôi lứa/i,
+    lineKw: /phu thê|bạn đời|vợ chồng|người yêu|hẹn hò|duyên|đôi lứa|tình cảm|yêu đương|gia đạo|hôn nhân/i,
+  },
+  {
+    key: "tat-ach",
+    label: "Tật Ách",
+    sectionKw: /tật ách|sức khỏe/i,
+    lineKw: /tật ách|sức khỏe|thân thể|ốm đau|bệnh|tai nạn|thương tích|ngủ|tinh thần|dạ dày|thần kinh/i,
+  },
+  {
+    key: "phuc-duc",
+    label: "Phúc Đức",
+    sectionKw: /phúc đức/i,
+    lineKw: /phúc đức|phúc báo|gốc phúc|tâm linh|tu tập|tâm an|an lạc|công đức|tổ tiên|phúc phần/i,
+  },
+];
+
+const countKeywordHits = (text: string, keywords: string[]): number => {
+  let n = 0;
+  for (const kw of keywords) {
+    // RegExp dựng mới mỗi lần — tránh state lastIndex của flag g.
+    const hits = text.match(new RegExp(kw.replace(/\s+/g, "\\s+"), "gi"));
+    if (hits) n += hits.length;
+  }
+  return n;
+};
+
+/** Điểm 5 miền: ưu tiên quét nguyên phần chuyên luận của miền; thiếu thì quét các dòng nhắc miền trên toàn bài. */
+export function computeDomainScores(md: string | null | undefined, sections: InterpSection[]): DomainScore[] {
+  const raw = String(md ?? "");
+  const allLines = raw.split("\n");
+  const clampScore = (v: number) => Math.max(8, Math.min(95, Math.round(v)));
+
+  return RADAR_DOMAINS.map((d) => {
+    const matched = sections.filter((s) => d.sectionKw.test(s.title));
+    const dedicated = matched.map((s) => s.body).join("\n").trim();
+    const text = dedicated || allLines.filter((l) => d.lineKw.test(l)).join("\n");
+    const pos = countKeywordHits(text, RADAR_POS_KEYWORDS);
+    const neg = countKeywordHits(text, RADAR_NEG_KEYWORDS);
+    const score = pos + neg === 0 ? 50 : clampScore(50 + (pos - neg) * 6);
+    return { key: d.key, label: d.label, score, posHits: pos, negHits: neg };
+  });
+}
+
+/** Biểu đồ ra đa SVG 5 trục (Tài Bạch, Quan Lộc, Phu Thê, Tật Ách, Phúc Đức) — không dùng thư viện ngoài. */
+const DomainRadarChart: React.FC<{ scores: DomainScore[] }> = ({ scores }) => {
+  const size = 340;
+  const cx = size / 2;
+  const cy = size / 2 + 6;
+  const R = 96;
+  const n = scores.length;
+  const angleAt = (i: number): number => (Math.PI * 2 * i) / n - Math.PI / 2;
+  const pt = (i: number, v: number): [number, number] => {
+    const r = (Math.max(0, Math.min(100, v)) / 100) * R;
+    return [cx + r * Math.cos(angleAt(i)), cy + r * Math.sin(angleAt(i))];
+  };
+  const polygonPoints = (values: number[]): string =>
+    values.map((v, i) => pt(i, v).map((c) => c.toFixed(1)).join(",")).join(" ");
+
+  const gridRings = [25, 50, 75, 100];
+
+  return (
+    <div className="rounded-xl border border-stone-200 dark:border-neutral-800 bg-white/70 dark:bg-neutral-950/40 p-4 sm:p-5">
+      <h5 className="flex items-center gap-1.5 text-xs font-bold text-stone-900 dark:text-white">
+        <Radar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+        RA ĐA 5 MIỀN ĐỜI — ƯỚC LƯỢNG CÁT/HUNG
+      </h5>
+      <p className="text-[10px] text-stone-500 dark:text-neutral-400 mt-1 leading-snug">
+        Điểm 0–100 đếm nhanh từ khóa cát/hung trong bài luận theo từng miền — chỉ mang tính tham khảo, không phải chấm điểm tuyệt đối.
+      </p>
+      <div className="flex justify-center mt-3">
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          role="img"
+          aria-label="Biểu đồ ra đa ước lượng 5 miền: Tài Bạch, Quan Lộc, Phu Thê, Tật Ách, Phúc Đức"
+          className="max-w-full h-auto"
+        >
+          {/* Lưới nền: các vòng ngũ giác 25/50/75/100% */}
+          {gridRings.map((ring) => (
+            <polygon
+              key={ring}
+              points={polygonPoints(scores.map(() => ring))}
+              className="fill-none stroke-stone-300 dark:stroke-neutral-700"
+              strokeWidth={1}
+            />
+          ))}
+          {/* Trục từ tâm ra đỉnh */}
+          {scores.map((_, i) => {
+            const [x, y] = pt(i, 100);
+            return (
+              <line
+                key={i}
+                x1={cx}
+                y1={cy}
+                x2={x}
+                y2={y}
+                className="stroke-stone-200 dark:stroke-neutral-800"
+                strokeWidth={1}
+              />
+            );
+          })}
+          {/* Miền điểm + đỉnh */}
+          <polygon
+            points={polygonPoints(scores.map((s) => s.score))}
+            className="fill-indigo-500/20 stroke-indigo-600 dark:stroke-indigo-400"
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+          {scores.map((s, i) => {
+            const [x, y] = pt(i, s.score);
+            return <circle key={s.key} cx={x} cy={y} r={3.5} className="fill-indigo-600 dark:fill-indigo-400" />;
+          })}
+          {/* Nhãn miền + điểm số */}
+          {scores.map((s, i) => {
+            const cos = Math.cos(angleAt(i));
+            const sin = Math.sin(angleAt(i));
+            const [vx, vy] = pt(i, 100);
+            const lx = cx + (vx - cx) * 1.14;
+            const ly = cy + (vy - cy) * 1.14;
+            const anchor = Math.abs(cos) < 0.3 ? "middle" : cos > 0 ? "start" : "end";
+            const dy = sin < -0.5 ? -6 : sin > 0.5 ? 14 : 4;
+            return (
+              <g key={s.key}>
+                <title>{`${s.label}: ${s.score}/100 — cát ${s.posHits} · hung ${s.negHits}`}</title>
+                <text
+                  x={lx}
+                  y={ly + dy}
+                  textAnchor={anchor}
+                  className="fill-stone-600 dark:fill-neutral-300 text-[10px] font-bold"
+                >
+                  {s.label}
+                </text>
+                <text
+                  x={lx}
+                  y={ly + dy + 12}
+                  textAnchor={anchor}
+                  className="fill-indigo-600 dark:fill-indigo-400 text-[10px] font-black"
+                >
+                  {s.score}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+};
 
 function InterpretationToolbar({
   onZen,
@@ -16,39 +418,33 @@ function InterpretationToolbar({
   onCopy,
   onDownload,
   copied,
-  compactZen = false,
 }: {
   onZen: () => void;
   onPrint: () => void;
   onCopy: () => void;
   onDownload: () => void;
   copied: boolean;
-  compactZen?: boolean;
 }) {
   const actionBtn =
-    "text-xs text-stone-650 dark:text-stone-300 font-bold border border-stone-250 dark:border-neutral-800 hover:bg-stone-100 dark:hover:bg-neutral-800 min-h-11 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer";
+    "text-[11px] sm:text-xs text-stone-650 dark:text-stone-300 font-bold border border-stone-250 dark:border-neutral-800 hover:bg-stone-100 dark:hover:bg-neutral-800 min-h-10 sm:min-h-11 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer";
 
   return (
-    <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 bg-stone-50/95 dark:bg-neutral-950/95 backdrop-blur-sm p-3 rounded-xl border border-stone-200 dark:border-neutral-800">
+    <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 sm:gap-3 bg-stone-50/95 dark:bg-neutral-950/95 backdrop-blur-sm p-2.5 sm:p-3 rounded-xl border border-stone-200 dark:border-neutral-800">
       <button
         type="button"
         onClick={onZen}
-        className={`inline-flex items-center gap-2 min-h-11 px-4 rounded-xl text-xs font-black text-white shadow-md transition-all cursor-pointer ${
-          compactZen
-            ? "bg-amber-600 hover:bg-amber-500"
-            : "bg-gradient-to-r from-amber-500 to-indigo-600 hover:brightness-110"
-        }`}
+        className="inline-flex items-center gap-1.5 sm:gap-2 min-h-10 sm:min-h-11 px-3 sm:px-4 rounded-xl text-xs font-black text-white shadow-md transition-all cursor-pointer bg-gradient-to-r from-amber-500 to-indigo-600 hover:brightness-110"
       >
         <BookOpen className="w-4 h-4" />
-        {compactZen ? "Đọc Tối Giản" : "Zen Reader"}
+        Zen Reader
       </button>
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
         <button type="button" onClick={onPrint} className={actionBtn} title="In lá số kèm sớ mệnh">
           🖨️ In PDF
         </button>
         <button type="button" onClick={onCopy} className={actionBtn} title="Sao chép sớ mệnh">
           <Copy className="w-3.5 h-3.5 text-amber-600" />
-          {copied ? "Đã sao chép!" : "Sao chép"}
+          {copied ? "Đã chép!" : "Sao chép"}
         </button>
         <button type="button" onClick={onDownload} className={actionBtn} title="Tải tệp .txt">
           <Download className="w-3.5 h-3.5 text-indigo-650" />
@@ -69,12 +465,15 @@ interface AIInterpreterProps {
   modelSelection: GeminiModelSelection;
   setModelSelection: (model: GeminiModelSelection) => void;
   retryCountdown?: number;
-  modelUsedResult?: string;
   fallbackUsedResult?: boolean;
   /** Cảnh báo star guard sau luận giải (API starAuditWarning). */
   starAuditWarning?: string | null;
   starHallucinated?: string[];
   starAuditRetried?: boolean;
+  /** API báo bài bị chạm trần đầu ra (MAX_TOKENS). */
+  truncated?: boolean;
+  /** API hậu kiểm thiếu phần/heading bắt buộc. */
+  structureIssues?: InterpretStructureIssues | null;
   // Hỏi đáp follow-up
   chatTurns?: ChatTurn[];
   chatLoading?: boolean;
@@ -93,11 +492,12 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
   modelSelection,
   setModelSelection,
   retryCountdown = 0,
-  modelUsedResult = "",
   fallbackUsedResult = false,
   starAuditWarning = null,
   starHallucinated = [],
   starAuditRetried = false,
+  truncated = false,
+  structureIssues = null,
   chatTurns = [],
   chatLoading = false,
   chatError = null,
@@ -115,11 +515,10 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
   };
   const [showKey, setShowKey] = React.useState<boolean>(false);
   const [saveStatus, setSaveStatus] = React.useState<boolean>(false);
+  const [saveKeyError, setSaveKeyError] = React.useState<string | null>(null);
 
-  // States for Chế độ đọc tối giản (Minimalist Reading Mode)
-  const [isMinimalMode, setIsMinimalMode] = React.useState<boolean>(() => {
-    return localStorage.getItem("tuvi_minimal_mode") === "true";
-  });
+  // Zen Reader: KHÔNG restore từ localStorage (R11 — tránh tự full-screen khi mở lại sớ).
+  const [isMinimalMode, setIsMinimalMode] = React.useState<boolean>(false);
   const [fontSize, setFontSize] = React.useState<number>(() => {
     const saved = localStorage.getItem("tuvi_font_size");
     return saved ? parseInt(saved, 10) : 16;
@@ -135,105 +534,58 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
     setReaderFontFamilyState(family);
     localStorage.setItem("tuvi_reader_font_family", family);
   };
-  const [showBreathingGuide, setShowBreathingGuide] = React.useState<boolean>(true);
-  const [breathSec, setBreathSec] = React.useState<number>(0);
 
-  const breathPhase = React.useMemo(() => {
-    if (breathSec >= 0 && breathSec < 4) return "inhale";
-    if (breathSec >= 4 && breathSec < 6) return "hold";
-    return "exhale";
-  }, [breathSec]);
-  const [isAmbientOn, setIsAmbientOn] = React.useState<boolean>(false);
   const [scrollPercent, setScrollPercent] = React.useState<number>(0);
 
+  // Zen Reader nội dung: "distilled" (bản chưng cất — mặc định) | "full" (toàn văn).
+  // Zen KHÔNG push nguyên 1:1 bài luận — chỉ ~15-20 câu chốt, đào sâu từng phần.
+  const [zenView, setZenView] = React.useState<"distilled" | "full">("distilled");
+  const [expandedPassages, setExpandedPassages] = React.useState<Set<string>>(new Set());
+  const togglePassageExpanded = (id: string) =>
+    setExpandedPassages((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  // Chưng cất rẻ (string ops) — memo theo bài gốc.
+  const zenDistilled = React.useMemo(() => distillInterpretation(interpretation), [interpretation]);
+
+  // Chia phần collapsible + điểm radar 5 miền — memo theo bài gốc.
+  const interpSections = React.useMemo(() => splitInterpretationSections(interpretation), [interpretation]);
+  const domainScores = React.useMemo(
+    () => computeDomainScores(interpretation, interpSections.sections),
+    [interpretation, interpSections],
+  );
+  // Progressive disclosure: mặc định MỞ HẾT — set chứa id của các phần đang GẤP.
+  const [collapsedSectionIds, setCollapsedSectionIds] = React.useState<ReadonlySet<string>>(new Set());
+  React.useEffect(() => {
+    // Bài luận mới (hoặc tách phần khác) → trả về mặc định mở hết.
+    setCollapsedSectionIds(new Set());
+  }, [interpSections]);
+  const toggleSectionCollapsed = (id: string) =>
+    setCollapsedSectionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const allSectionsCollapsed =
+    interpSections.sections.length > 0 && collapsedSectionIds.size >= interpSections.sections.length;
+  const toggleAllSections = () =>
+    setCollapsedSectionIds(
+      allSectionsCollapsed ? new Set() : new Set(interpSections.sections.map((s) => s.id)),
+    );
+  const zenProseClass =
+    readerTheme === "cream"
+      ? "text-[#2e261d] prose-stone prose-headings:text-[#1c140e] prose-a:text-amber-800"
+      : readerTheme === "white"
+      ? "text-stone-850 dark:text-neutral-200 prose-stone dark:prose-invert"
+      : "text-neutral-300 prose-invert prose-headings:text-neutral-100 prose-a:text-indigo-400";
+
   const readerContainerRef = React.useRef<HTMLDivElement>(null);
-  const ambientAudioRef = React.useRef<{ audioCtx: AudioContext | null; gainNode: any } | null>(null);
   // Cờ throttle cho onScroll: chỉ cho phép 1 lần cập nhật scrollPercent mỗi frame.
   const scrollTickingRef = React.useRef<boolean>(false);
-
-  // Synchronize browser body scrolling status of minimalist mode
-  React.useEffect(() => {
-    // We avoid hardlocking document.body.style.overflow = "hidden" inside sandboxed iframe wrappers,
-    // which can freeze user input. We ensure smooth native scroll interactions instead.
-    if (!isMinimalMode) {
-      stopZenAmbient();
-      setIsAmbientOn(false);
-    }
-  }, [isMinimalMode]);
-
-  // Handle breathing phase transitions automatically
-  React.useEffect(() => {
-    if (!isMinimalMode) return;
-    const interval = setInterval(() => {
-      setBreathSec((prev) => (prev + 1) % 10);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isMinimalMode]);
-
-  const startZenAmbient = () => {
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
-      
-      const bufferSize = 2 * ctx.sampleRate;
-      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const output = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 - 1;
-      }
-      
-      const whiteNoise = ctx.createBufferSource();
-      whiteNoise.buffer = noiseBuffer;
-      whiteNoise.loop = true;
-      
-      const waveNode = ctx.createBiquadFilter();
-      waveNode.type = "lowpass";
-      waveNode.frequency.value = 350;
-      
-      const gainNode = ctx.createGain();
-      gainNode.gain.value = 0.05; // soft white noise breeze
-      
-      const lfoNode = ctx.createOscillator();
-      lfoNode.frequency.value = 0.1; // 10 second cycles matching breathing
-      
-      const lfoGain = ctx.createGain();
-      lfoGain.gain.value = 180;
-      
-      lfoNode.connect(lfoGain);
-      lfoGain.connect(waveNode.frequency);
-      
-      whiteNoise.connect(waveNode);
-      waveNode.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      
-      whiteNoise.start();
-      lfoNode.start();
-      
-      ambientAudioRef.current = { audioCtx: ctx, gainNode };
-    } catch (err) {
-      console.error("Audio failed configuration:", err);
-    }
-  };
-
-  const stopZenAmbient = () => {
-    if (ambientAudioRef.current?.audioCtx) {
-      try {
-        ambientAudioRef.current.audioCtx.close();
-      } catch (e) {}
-      ambientAudioRef.current = null;
-    }
-  };
-
-  const toggleAmbientSound = () => {
-    if (isAmbientOn) {
-      stopZenAmbient();
-      setIsAmbientOn(false);
-    } else {
-      startZenAmbient();
-      setIsAmbientOn(true);
-    }
-  };
 
   const handleScrollDepth = () => {
     // Throttle bằng requestAnimationFrame: onScroll bắn rất dày, gom về tối đa
@@ -251,18 +603,25 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
   };
 
   const exitMinimalMode = () => {
-    stopZenAmbient();
-    setIsAmbientOn(false);
     setIsMinimalMode(false);
-    localStorage.setItem("tuvi_minimal_mode", "false");
+    // Dọn cờ cũ (nếu từng persist true) — Zen chỉ bật khi user bấm trong phiên hiện tại.
+    try {
+      localStorage.removeItem("tuvi_minimal_mode");
+    } catch {
+      /* ignore */
+    }
   };
 
   const toggleMinimalMode = () => {
     // Không cho vào Zen Reader khi chưa có bản luận giải (tránh overlay rỗng).
     if (!interpretation) return;
-    const next = !isMinimalMode;
-    setIsMinimalMode(next);
-    localStorage.setItem("tuvi_minimal_mode", String(next));
+    if (isMinimalMode) {
+      exitMinimalMode();
+      return;
+    }
+    // Mở Zen luôn ở bản chưng cất — đây là bản chất của Zen Reader.
+    setZenView("distilled");
+    setIsMinimalMode(true);
   };
 
   const handleFontSizeChange = (delta: number) => {
@@ -300,13 +659,18 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  // Save key to browser local storage for convenience
   const handleSaveKey = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      localStorage.setItem("tuvi_byok_key", apiKey.trim());
-    } catch (err) {
-      console.error("Không lưu được API key vào localStorage:", err);
+    setSaveKeyError(null);
+    if (!apiKey.trim()) {
+      setSaveKeyError("Chưa nhập API key.");
+      return;
+    }
+    const ok = saveByokKey(apiKey);
+    if (!ok) {
+      setSaveKeyError("Không lưu được key (trình duyệt chặn storage / đầy bộ nhớ).");
+      setSaveStatus(false);
+      return;
     }
     setSaveStatus(true);
     setTimeout(() => setSaveStatus(false), 2000);
@@ -314,13 +678,14 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
 
   const handleSaveKeyInline = (e: React.FormEvent) => {
     e.preventDefault();
+    setSaveKeyError(null);
     if (!apiKey.trim()) return;
-    try {
-      localStorage.setItem("tuvi_byok_key", apiKey.trim());
-    } catch (err) {
-      console.error("Không lưu được API key vào localStorage:", err);
+    const ok = saveByokKey(apiKey);
+    if (!ok) {
+      setSaveKeyError("Không lưu được key — vẫn thử luận với key trên form.");
+    } else {
+      setSaveStatus(true);
     }
-    setSaveStatus(true);
     setTimeout(() => {
       setSaveStatus(false);
       onTriggerInterpret();
@@ -328,8 +693,9 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
   };
 
   const handleClearKey = () => {
-    localStorage.removeItem("tuvi_byok_key");
+    clearByokKey();
     setApiKey("");
+    setSaveKeyError(null);
   };
 
   const isQuotaError = !!(
@@ -348,21 +714,18 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
       <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 p-5 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-indigo-950/80">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-black tracking-tight flex items-center gap-2">
+            <h3 className="font-title text-base flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-amber-400" />
-              BÌNH GIẢI LÁ SỐ BẰNG TRÍ TUỆ NHÂN TẠO AI
+              BÌNH GIẢI LÁ SỐ BẰNG TRÍ TUỆ NHÂN TẠO
             </h3>
-            <span className="text-[10px] bg-amber-500 text-stone-950 px-2 py-0.5 rounded-full font-black tracking-wider uppercase shadow-md">
+            <span className="text-[10px] bg-amber-500 text-stone-950 px-2 py-0.5 rounded-full font-bold tracking-wide uppercase shadow-md font-sans">
               Chế độ Nói Thật & Trực Diện ⚡
             </span>
           </div>
-          <p className="text-xs text-indigo-200 mt-1">
-            Thuật toán phân tích sát sườn cả mặt hỷ cát lẫn mặt tai họa, hãm địa, sát tinh hiểm ác để đương số can đảm nhìn nhận thực tế và chủ động khắc chế vận số.
-          </p>
         </div>
 
         {/* BYOK — desktop */}
-        <form onSubmit={handleSaveKey} className="hidden md:flex gap-2 items-center bg-indigo-950/40 p-1.5 rounded-lg border border-indigo-700/50 w-full md:w-auto">
+        <form onSubmit={handleSaveKey} className="hidden md:flex flex-wrap gap-2 items-center bg-indigo-950/40 p-1.5 rounded-lg border border-indigo-700/50 w-full md:w-auto">
           <Key className="w-4 h-4 text-indigo-300 ml-1.5 shrink-0" />
           <div className="relative">
             <input
@@ -397,6 +760,9 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
               Xóa
             </button>
           )}
+          {saveKeyError && (
+            <span className="text-[10px] text-rose-300 font-semibold w-full md:w-auto">{saveKeyError}</span>
+          )}
         </form>
       </div>
 
@@ -430,6 +796,9 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
               {saveStatus ? <CheckCircle className="w-3 h-3 text-emerald-400" /> : "Lưu"}
             </button>
           </form>
+          {saveKeyError && (
+            <p className="text-[10px] text-rose-300 font-semibold px-1">{saveKeyError}</p>
+          )}
           <div className="flex flex-wrap gap-3">
             <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-indigo-100">
               <input type="radio" name="model_select_m" checked={modelSelection === GEMINI_MODEL_FLASH} onChange={() => setModelSelection(GEMINI_MODEL_FLASH)} className="accent-indigo-400" />
@@ -484,7 +853,7 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
           <button
             onClick={onTriggerInterpret}
             disabled={isLoading || retryCountdown > 0}
-            className={`w-full sm:w-auto font-bold p-3 px-6 rounded-xl flex items-center justify-center gap-2.5 active:scale-98 transition-all shrink-0 text-sm select-none shadow-lg ${
+            className={`w-full sm:w-auto font-bold p-3 px-6 rounded-xl flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all shrink-0 text-sm select-none shadow-lg ${
               retryCountdown > 0
                 ? "bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/20"
                 : "bg-indigo-600 hover:bg-indigo-500 disabled:bg-stone-300 disabled:cursor-not-allowed text-white shadow-indigo-600/20"
@@ -493,7 +862,7 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
             {isLoading ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                Đang luận giải lá số cổ học...
+                Đang luận giải lá số Tử Vi...
               </>
             ) : retryCountdown > 0 ? (
               <>
@@ -503,17 +872,46 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
             ) : (
               <>
                 <Brain className="w-4 h-4" />
-                Khởi động AI Luận Giải Tử Vi
+                Khởi Động Luận Giải
               </>
             )}
           </button>
+        </div>
+
+        {/* Cấu hình model trên mobile */}
+        <div className="md:hidden flex items-center justify-between gap-2 p-2.5 bg-stone-50 dark:bg-neutral-950 rounded-xl border border-stone-200 dark:border-neutral-800 text-xs">
+          <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wide">Mô hình AI:</span>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => setModelSelection(GEMINI_MODEL_FLASH)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                modelSelection === GEMINI_MODEL_FLASH
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "bg-white dark:bg-neutral-900 text-stone-600 dark:text-neutral-300 border border-stone-200 dark:border-neutral-800"
+              }`}
+            >
+              Flash (Chuẩn)
+            </button>
+            <button
+              type="button"
+              onClick={() => setModelSelection(GEMINI_MODEL_FLASH_LITE)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                modelSelection === GEMINI_MODEL_FLASH_LITE
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "bg-white dark:bg-neutral-900 text-stone-600 dark:text-neutral-300 border border-stone-200 dark:border-neutral-800"
+              }`}
+            >
+              Flash-Lite 🚀
+            </button>
+          </div>
         </div>
 
         {/* Nút luận giải — mobile full width */}
         <button
           onClick={onTriggerInterpret}
           disabled={isLoading || retryCountdown > 0}
-          className={`md:hidden w-full font-bold p-3.5 min-h-11 rounded-xl flex items-center justify-center gap-2.5 active:scale-98 transition-all text-sm shadow-lg ${
+          className={`md:hidden w-full font-bold p-3.5 min-h-11 rounded-xl flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all text-sm shadow-lg ${
             retryCountdown > 0
               ? "bg-amber-600 text-white"
               : "bg-indigo-600 hover:bg-indigo-500 disabled:bg-stone-300 disabled:cursor-not-allowed text-white"
@@ -529,7 +927,7 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
           ) : (
             <>
               <Brain className="w-4 h-4" />
-              Khởi động AI Luận Giải Tử Vi
+              Khởi Động Luận Giải
             </>
           )}
         </button>
@@ -553,9 +951,9 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
               <Sparkles className="absolute inset-0 m-auto w-6 h-6 text-amber-500 opacity-90" />
             </div>
             <div className="space-y-1">
-              <p className="font-extrabold text-stone-900 dark:text-white text-base">Đang Kết Nối Bát Tự Tam Hợp...</p>
+              <p className="font-extrabold text-stone-900 dark:text-white text-base">Đang dựng luận giải từ thiên bàn...</p>
               <p className="text-xs text-stone-400">
-                AI đang tính toán mệnh thế, phối hợp sao chiếu, xung âm dương ngũ hành cát hung để biên soạn...
+                AI bám 12 cung, sao thực có, tứ hóa và vận hạn — không bịa sao ngoài lá.
               </p>
             </div>
           </div>
@@ -582,7 +980,7 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
                       Phương án 1 (Phụ thuộc chung)
                     </span>
                     <h5 className="font-bold text-xs text-stone-800 dark:text-neutral-200 mt-2">
-                      Đợi 30 giây rồi gửi lại mong đợi hàng chờ trống
+                      Đợi khoảng 30 giây rồi thử gửi lại khi hàng chờ đã trống
                     </h5>
                     <p className="text-[11px] text-stone-500 dark:text-neutral-400 leading-relaxed mt-1">
                       Hạn mức dùng thử miễn phí chung của máy chủ được tự động làm mới liên tục theo từng phút. Quý vị hãy kiên nhẫn một chút rồi nhấn nút gửi lại.
@@ -671,9 +1069,48 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
                 <div className="space-y-1 text-left">
                   <p className="font-extrabold text-[#0369a1] dark:text-[#38bdf8] uppercase tracking-tight">Hệ Thống Tự Động Kích Hoạt Chuyển Hướng Dự Phòng 🚀</p>
                   <p className="leading-relaxed font-semibold">
-                    Máy chủ Gemini 3.5 Flash của Google hiện tại đang nhận lưu lượng quá tải cục bộ (Báo lỗi bận 503). 
-                    Để bản luận giải không bị ngắt quãng hoặc chết đứng, hệ thống đã <span className="text-amber-600 dark:text-amber-400 font-extrabold">tự động định tuyến cuộc gọi thành công qua Gemini 3.1 Flash-Lite dự phòng</span> hoàn toàn êm ái cho quý vị!
+                    Máy chủ Gemini 3.8 Flash của Google hiện tại đang nhận lưu lượng quá tải cục bộ (Báo lỗi bận 503). 
+                    Để bản luận giải không bị ngắt quãng hoặc chết đứng, hệ thống đã <span className="text-amber-600 dark:text-amber-400 font-extrabold">tự động định tuyến cuộc gọi thành công qua Gemini 3.5 Flash Lite dự phòng</span> hoàn toàn êm ái cho quý vị!
                   </p>
+                </div>
+              </div>
+            )}
+            {(truncated ||
+              (structureIssues && structureIssues.missingHeadings.length > 0)) && (
+              <div
+                className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 shadow-sm border ${
+                  truncated
+                    ? "bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 text-rose-900 dark:text-rose-200"
+                    : "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50 text-amber-950 dark:text-amber-200"
+                }`}
+                role="alert"
+              >
+                <AlertTriangle
+                  className={`w-4 h-4 shrink-0 mt-0.5 ${
+                    truncated ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400"
+                  }`}
+                />
+                <div className="space-y-1 text-left min-w-0">
+                  <p className="font-extrabold tracking-tight">
+                    {truncated ? "Bài luận có thể bị cắt" : "Bài luận có thể thiếu một số mạch nội dung"}
+                  </p>
+                  {truncated && (
+                    <p className="leading-relaxed">
+                      Máy chủ đã chạm giới hạn độ dài đầu ra; phần Kết luận 5 dòng có thể chưa đủ.
+                      Hãy luận giải lại hoặc rút gọn yêu cầu.
+                    </p>
+                  )}
+                  {structureIssues && structureIssues.missingHeadings.length > 0 && (
+                    <p className="leading-relaxed">
+                      Chưa thấy rõ mạch: <b>{structureIssues.missingHeadings.join(" · ")}</b>.
+                    </p>
+                  )}
+                  {structureIssues && !truncated && (
+                    <p className="leading-relaxed opacity-80">
+                      Bài vẫn dùng được; cảnh báo này chỉ dựa trên từ khóa nội dung, không bắt buộc
+                      đúng tên phần hay kiểu heading.
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -803,19 +1240,23 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
                       </button>
                     </div>
 
-                    {/* Ambient sound loops */}
+                    {/* Zen content view toggle — chưng cất ↔ toàn văn */}
                     <button
-                      onClick={toggleAmbientSound}
+                      onClick={() => setZenView((v) => (v === "distilled" ? "full" : "distilled"))}
                       className={`p-1.5 px-3 rounded-xl border flex gap-1.5 items-center transition-all cursor-pointer ${
-                        isAmbientOn
-                          ? "bg-gradient-to-r from-amber-500 to-indigo-600 border-transparent text-white"
+                        zenView === "full"
+                          ? "bg-gradient-to-r from-stone-700 to-stone-900 border-transparent text-white dark:from-neutral-600 dark:to-neutral-800"
                           : "border-stone-250 dark:border-neutral-850 hover:bg-stone-100"
                       }`}
-                      title="Sóng âm thanh lọc khí kết nối bát tự giúp thông mượt vận số"
+                      title={
+                        zenView === "distilled"
+                          ? "Đọc nguyên văn toàn bộ bài luận trong Zen"
+                          : "Trở về bản chưng cất — chỉ những câu cốt lõi"
+                      }
                     >
-                      {isAmbientOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 opacity-70" />}
+                      {zenView === "distilled" ? <FileText className="w-4 h-4" /> : <BookOpen className="w-4 h-4" />}
                       <span className="text-[10px] font-bold uppercase tracking-wider">
-                        {isAmbientOn ? "Ambient: Mở" : "Âm thiền"}
+                        {zenView === "distilled" ? "Xem toàn văn" : "Về bản chưng cất"}
                       </span>
                     </button>
                   </div>
@@ -835,8 +1276,8 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
                   >
                     {/* Visual Card Accent */}
                     <div className="text-center pb-8 border-b border-dashed border-stone-200 dark:border-neutral-800 space-y-4">
-                      <span className="text-[10px] tracking-widest font-bold font-mono opacity-50 uppercase block">An nhiên thấu tỏ mạng vận</span>
-                      <h1 className="text-2.5xl sm:text-4xl font-black font-display tracking-tight leading-tight">
+                      <span className="text-[10px] tracking-widest font-bold font-mono opacity-50 uppercase block">Đọc kỹ · Đối chiếu thiên bàn</span>
+                      <h1 className="text-3xl sm:text-4xl font-black font-display tracking-tight leading-tight">
                         HỘ KIỆT BÌNH TOÀN TẬP
                       </h1>
                       <p className="text-xs italic opacity-75 max-w-lg mx-auto leading-relaxed">
@@ -844,19 +1285,89 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
                       </p>
                     </div>
 
-                    {/* Styled Markdown inside */}
-                    <div
-                      className={`prose max-w-none transition-all duration-300 ${
-                        readerTheme === "cream"
-                          ? "text-[#2e261d] prose-stone prose-headings:text-[#1c140e] prose-headings:font-display prose-a:text-amber-800"
-                          : readerTheme === "white"
-                          ? "text-stone-850 dark:text-neutral-200 prose-stone dark:prose-invert"
-                          : "text-neutral-300 prose-invert prose-headings:text-neutral-100 prose-a:text-indigo-400"
-                      }`}
-                      style={{ fontSize: `${fontSize}px`, lineHeight: "2.1" }}
-                    >
-                      <ReactMarkdown>{interpretation}</ReactMarkdown>
-                    </div>
+                    {/* Styled content — Zen mặc định render BẢN CHƯNG CẤT, không 1:1 */}
+                    {zenView === "full" ? (
+                      <div
+                        className={`prose max-w-none transition-all duration-300 ${zenProseClass}`}
+                        style={{ fontSize: `${fontSize}px`, lineHeight: "2.1" }}
+                      >
+                        <SafeMarkdown highlightAstroTerms>{interpretation}</SafeMarkdown>
+                      </div>
+                    ) : (
+                      <div className="space-y-12">
+                        {zenDistilled.openingLine && (
+                          <p
+                            className="italic text-center opacity-90 leading-loose px-2"
+                            style={{ fontSize: `${Math.min(fontSize + 2, 26)}px` }}
+                          >
+                            “{zenDistilled.openingLine}”
+                          </p>
+                        )}
+
+                        {zenDistilled.passages.map((p) => {
+                          const isExpanded = expandedPassages.has(p.id);
+                          return (
+                            <section key={p.id} className="space-y-3">
+                              <div className="flex items-baseline justify-between gap-3">
+                                <h2 className="text-[11px] font-black uppercase tracking-widest opacity-60">
+                                  {p.title}
+                                </h2>
+                                <button
+                                  onClick={() => togglePassageExpanded(p.id)}
+                                  className="text-[11px] font-bold opacity-60 hover:opacity-100 underline decoration-dotted underline-offset-4 whitespace-nowrap transition-opacity cursor-pointer"
+                                  title={isExpanded ? "Gập lại — chỉ giữ câu chốt" : "Mở nguyên văn phần này"}
+                                >
+                                  {isExpanded ? "gập lại ▴" : "đọc sâu ▾"}
+                                </button>
+                              </div>
+
+                              <div className="space-y-2.5">
+                                {p.breaths.length > 0 ? (
+                                  p.breaths.map((b, i) => (
+                                    <p key={i} style={{ lineHeight: 1.9 }}>
+                                      {b}
+                                    </p>
+                                  ))
+                                ) : (
+                                  <p className="italic opacity-60">
+                                    (phần này máy không rút được câu chốt — bấm "đọc sâu" để đọc nguyên văn)
+                                  </p>
+                                )}
+
+                                {p.id === "van-nam" && zenDistilled.yearCards.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 pt-1.5">
+                                    {zenDistilled.yearCards.map((c) => (
+                                      <span
+                                        key={c}
+                                        className="text-[10px] font-black uppercase tracking-wider border border-current opacity-60 rounded-full px-2.5 py-0.5"
+                                      >
+                                        {c}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {isExpanded && (
+                                <div
+                                  className={`prose max-w-none border-l-2 border-stone-300/60 dark:border-neutral-700 pl-5 ml-1 ${zenProseClass}`}
+                                  style={{ fontSize: `${Math.max(fontSize - 1, 12)}px`, lineHeight: 1.95 }}
+                                >
+                                  <SafeMarkdown highlightAstroTerms>{p.full}</SafeMarkdown>
+                                </div>
+                              )}
+                            </section>
+                          );
+                        })}
+
+                        {/* An toàn cuối: parser không rút được gì → trả nguyên văn */}
+                        {zenDistilled.passages.length === 0 && (
+                          <div className={`prose max-w-none ${zenProseClass}`} style={{ fontSize: `${fontSize}px`, lineHeight: "2.1" }}>
+                            <SafeMarkdown highlightAstroTerms>{interpretation}</SafeMarkdown>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Book signature */}
                     <div className="pt-12 border-t border-dashed border-stone-200 dark:border-neutral-800 text-center opacity-65 text-xs italic space-y-2 pb-16">
@@ -867,50 +1378,6 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
                     </div>
                   </article>
                 </div>
-
-                {/* Bottom Mindful Breathing guide to "rèn-hành" */}
-                {showBreathingGuide && (
-                  <div className="border-t border-stone-200/50 dark:border-neutral-800/80 bg-opacity-90 backdrop-blur-md p-3 px-6 sm:px-8 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs z-[110]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 rounded-full bg-indigo-500/10 border border-indigo-400/40 flex items-center justify-center relative shrink-0">
-                        <span className="absolute w-2.5 h-2.5 rounded-full bg-indigo-500 animate-breath" />
-                      </div>
-                      <div>
-                        <span className="font-extrabold text-[11px] tracking-tight block uppercase text-amber-600 dark:text-amber-500">
-                          Pháp rèn dưỡng khí hành tâm 🧘
-                        </span>
-                        <span className="text-[10px] opacity-70 leading-tight">
-                          Kết hợp đọc sớ mệnh với điều tiết hơi thở để khơi thông chướng khí tắc nghẽn của vận hạn.
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      <div className="bg-stone-100 dark:bg-neutral-900 border border-stone-200 dark:border-neutral-800 p-1 px-3.5 rounded-full text-[10px] font-bold tracking-wider flex items-center gap-2">
-                        <span className="opacity-60">Trạng thái rèn:</span>
-                        <span
-                          className={`uppercase font-mono text-[10px] p-0.5 px-2.5 rounded-full ${
-                            breathPhase === "inhale"
-                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400 animate-pulse"
-                              : breathPhase === "hold"
-                              ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-400"
-                              : "bg-indigo-150 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-400 animate-pulse"
-                          }`}
-                        >
-                          {breathPhase === "inhale" ? "HÍT VÀO CHẬM (4s) ↗" : breathPhase === "hold" ? "NÍN THỞ NẰM GIỮ (2s) ○" : "THỞ RA ÊM (4s) ↘"}
-                        </span>
-                      </div>
-
-                      <button
-                        onClick={() => setShowBreathingGuide(false)}
-                        className="hover:opacity-100 opacity-60 p-1 hover:bg-stone-200/50 dark:hover:bg-neutral-800 rounded transition-colors"
-                        title="Đóng bảng thở hướng dẫn"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
@@ -918,11 +1385,11 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
             <div className="border border-stone-200 dark:border-neutral-800 rounded-xl p-6 bg-stone-50/50 dark:bg-stone-950/20 font-sans leading-relaxed text-stone-850 dark:text-neutral-200">
               <h4 className="font-bold text-stone-900 dark:text-white flex items-center gap-1.5 text-sm pb-3 mb-6 border-b border-stone-200 dark:border-neutral-800">
                 <FileText className="w-4 h-4 text-indigo-650" />
-                HỘ KIỆT BÌNH TOÀN CHI TIẾT LÁ SỐ
+                LUẬN GIẢI CHI TIẾT LÁ
               </h4>
 
               <div className="markdown-body reading-rhythm prose prose-stone dark:prose-invert max-w-none space-y-6">
-                <ReactMarkdown>{interpretation}</ReactMarkdown>
+                <SafeMarkdown highlightAstroTerms>{interpretation}</SafeMarkdown>
               </div>
             </div>
 
@@ -932,9 +1399,6 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
                 <MessageCircle className="w-4 h-4 text-indigo-600" />
                 Hỏi Đáp Thêm Về Lá Số Này
               </h4>
-              <p className="text-[11px] text-stone-500 dark:text-neutral-400 -mt-2">
-                Đặt câu hỏi cụ thể (vd: “năm sau tôi có nên đổi việc?”, “tháng nào hợp cưới?”). AI trả lời bám đúng bản luận giải ở trên.
-              </p>
 
               {chatTurns.length > 0 && (
                 <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
@@ -990,7 +1454,7 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
                 <button
                   type="submit"
                   disabled={!followUpInput.trim() || chatLoading || retryCountdown > 0}
-                  className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-stone-300 disabled:cursor-not-allowed text-white font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-all active:scale-98 shrink-0"
+                  className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-stone-300 disabled:cursor-not-allowed text-white font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-all active:scale-[0.98] shrink-0"
                 >
                   <Send className="w-4 h-4" />
                   Gửi
@@ -1006,7 +1470,7 @@ export const AIInterpreter: React.FC<AIInterpreterProps> = ({
             <div className="space-y-1 max-w-md mx-auto">
               <p className="font-bold text-stone-800 dark:text-neutral-200 text-sm">Chưa có bản luận giải nào được tạo</p>
               <p className="text-xs">
-                Ấn nút <strong>"Khởi động AI Luận Giải Tử Vi"</strong> để AI phân tích tam hợp lục hại, an sao, và đúc kết chi tiết mệnh vận cuộc đời quý vị.
+                Ấn nút <strong>"Khởi Động Luận Giải"</strong> để AI phân tích tam hợp lục hại, an sao, và đúc kết chi tiết mệnh vận cuộc đời quý vị.
               </p>
             </div>
           </div>

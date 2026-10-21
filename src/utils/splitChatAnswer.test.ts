@@ -30,4 +30,15 @@ describe("splitChatAnswer", () => {
     expect(r.lead).toContain("Kết luận");
     expect(r.detail).toContain("B");
   });
+
+  it("REGRESSION — tách cả khi 'Căn cứ' xuống dòng đơn (\\b sau 'cứ' là dead boundary)", () => {
+    // JS \b chạy theo \w ASCII nên "cứ\b" chỉ khớp khi sau là ký tự ASCII —
+    // trước đây "Căn cứ Tử Vi" cách lead bằng MỘT dòng \n không bao giờ khớp
+    // pattern chính, bị rơi xuống fallback chia đoạn \n\n.
+    const text = "Ngành phù hợp là kỹ thuật.\nCăn cứ Tử Vi: Thiên Cơ Miếu tại Quan Lộc.\nCăn cứ Bát Tự: Ất Mộc nhược.";
+    const r = splitChatAnswer(text);
+    expect(r.lead).toContain("kỹ thuật");
+    expect(r.detail).toMatch(/^Căn cứ Tử Vi/i);
+    expect(r.detail).toContain("Căn cứ Bát Tự");
+  });
 });

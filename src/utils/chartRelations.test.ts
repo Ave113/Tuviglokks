@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   toBranchIndex,
+  giapBranches,
   BRANCHES_VI,
   NHI_HOP,
   LUC_HAI,
@@ -12,6 +13,7 @@ import {
   buildRelationsBlock,
   satKyStarsInPalace,
   buildCrossLinks,
+  starTokensOf,
 } from "./chartRelations";
 
 // Lá số giả tối thiểu theo quy ước iztro (palace.index 0 = Dần).
@@ -135,11 +137,28 @@ describe("buildRelationsBlock", () => {
   });
 });
 
+describe("giapBranches", () => {
+  it("trả 2 chi kề b±1, wrap đúng qua Tý/Hợi", () => {
+    expect(giapBranches(0)).toEqual([11, 1]);
+    expect(giapBranches(11)).toEqual([10, 0]);
+    expect(giapBranches(5)).toEqual([4, 6]);
+  });
+});
+
 describe("satKyStarsInPalace", () => {
   it("phát hiện Kình Dương là sát tinh", () => {
     const idx = buildChartIndex(buildPalaces());
     const tai = idx.palacesArr.find((p: any) => p.name === "Cung Tài Bạch");
     expect(satKyStarsInPalace(tai)).toContain("Kình Dương");
+  });
+
+  it("REGRESSION 2026-10 — thấy nhãn 'Lưu Hóa Kỵ (Sao X)' do app tự an (bỏ hậu tố ngoặc)", () => {
+    const palace = {
+      majorStars: [],
+      minorStars: [{ name: "[SAO LƯU] Lưu Hóa Kỵ (Thái Dương)" }],
+      adjectiveStars: [],
+    };
+    expect(satKyStarsInPalace(palace)).toContain("[SAO LƯU] Lưu Hóa Kỵ (Thái Dương)");
   });
 });
 
@@ -166,5 +185,52 @@ describe("buildCrossLinks - liên kết đa chiều", () => {
   it("thiếu cả hai can -> báo chưa đủ dữ liệu, không crash", () => {
     const out = buildCrossLinks(idx, undefined, undefined, undefined);
     expect(out).toContain("Chưa đủ dữ liệu");
+  });
+});
+
+describe("starTokensOf — mạch liên kết mutagen (Tứ Hóa bẩm sinh) vào scanner", () => {
+  // Tứ Hóa bẩm sinh nằm ở field `mutagen` RIÊNG của sao gốc (iztro), không nằm
+  // trong `name`. Scanner quét theo tên phải "thấy" được nó qua token phát sinh.
+  it("phát sinh token 'Hóa X' từ mutagen của sao gốc (dạng ngắn iztro)", () => {
+    const palace = {
+      majorStars: [{ name: "Thái Dương", mutagen: "Kỵ", brightness: "Vượng" }],
+      minorStars: [],
+      adjectiveStars: [],
+    };
+    const names = starTokensOf(palace).map((s: any) => String(s.name));
+    expect(names).toContain("Thái Dương");
+    expect(names).toContain("Hóa Kỵ");
+  });
+
+  it("chấp nhận cả mutagen đã chuẩn hóa 'Hóa Kỵ' (payload enrichPalace)", () => {
+    const palace = {
+      majorStars: [{ name: "Liêm Trinh", mutagen: "Hóa Lộc" }],
+      minorStars: [],
+      adjectiveStars: [],
+    };
+    const names = starTokensOf(palace).map((s: any) => String(s.name));
+    expect(names).toContain("Hóa Lộc");
+  });
+
+  it("REGRESSION — satKyStarsInPalace phải thấy Hóa Kỵ bẩm sinh qua mutagen", () => {
+    // Giá năm Giáp: Thái Dương Hóa Kỵ tại Tử Nữ — "vùng áp lực sát/kỵ" phải liệt kê
+    const palace = {
+      majorStars: [{ name: "Thái Dương", mutagen: "Kỵ", brightness: "Hạn" }],
+      minorStars: [],
+      adjectiveStars: [],
+    };
+    expect(satKyStarsInPalace(palace)).toContain("Hóa Kỵ");
+  });
+
+  it("sao [SAO LƯU]/[SAO VẬN] không mang mutagen → không phát sinh token (tránh nhầm lưu thành bẩm sinh)", () => {
+    const palace = {
+      majorStars: [],
+      minorStars: [{ name: "[SAO LƯU] Lưu Đà La" }],
+      adjectiveStars: [{ name: "[SAO VẬN] Vận Kình Dương" }],
+    };
+    const names = starTokensOf(palace).map((s: any) => String(s.name));
+    expect(names).toHaveLength(2);
+    expect(names).not.toContain("Hóa Kỵ");
+    expect(names).not.toContain("Hóa Lộc");
   });
 });

@@ -11,6 +11,8 @@ export interface StarGuardedText {
   text: string;
   audit: StarAuditResult;
   retried: boolean;
+  /** Bản retry bị chạm trần đầu ra (MAX_TOKENS) — cần báo cho client. */
+  truncated: boolean;
 }
 
 /** Hậu kiểm đầu ra AI; retry một lần nếu bịa nặng (chính tinh / ≥3 sao). */
@@ -21,12 +23,29 @@ export async function applyStarHallucinationGuard(options: {
   systemInstruction: string;
   chartData: { palaces?: any[] };
   text: string;
-  /** Truyền xuống generateContent (vd chat dùng trần output thấp hơn). */
+  /** Truyền xuống generateContent (vd chat dùng trần đầu ra thấp hơn). */
   maxOutputTokens?: number;
+  /**
+   * (Tuỳ chọn) Mốc epoch ms — quá hạn thì BỎ 1 lần luận lại, giữ bản gốc +
+   * phụ chú hậu kiểm. Dùng cho /api/interpret để không vượt maxDuration deploy.
+   */
+  deadlineMs?: number;
 }): Promise<StarGuardedText> {
   let audit = auditAiStarMentions(options.text, options.chartData);
   if (audit.severity !== "retry") {
-    return { text: options.text, audit, retried: false };
+    return { text: options.text, audit, retried: false, truncated: false };
+  }
+
+  if (options.deadlineMs != null && Date.now() > options.deadlineMs) {
+    console.warn(
+      "[StarGuard] Quá mốc an toàn thời gian — bỏ 1 lần luận lại, giữ bản gốc + phụ chú hậu kiểm.",
+    );
+    return {
+      text: appendStarAuditDisclaimer(options.text, audit.hallucinated),
+      audit,
+      retried: false,
+      truncated: false,
+    };
   }
 
   console.warn(
@@ -43,7 +62,7 @@ export async function applyStarHallucinationGuard(options: {
     options.systemInstruction + addon.systemSuffix,
     genOpts,
   );
-  const { text: retryText } = interpretResponse(response);
+  const { text: retryText, truncated: retryTruncated } = interpretResponse(response);
   audit = auditAiStarMentions(retryText, options.chartData);
 
   if (audit.severity === "retry") {
@@ -51,8 +70,9 @@ export async function applyStarHallucinationGuard(options: {
       text: appendStarAuditDisclaimer(retryText, audit.hallucinated),
       audit,
       retried: true,
+      truncated: Boolean(retryTruncated),
     };
   }
 
-  return { text: retryText, audit, retried: true };
+  return { text: retryText, audit, retried: true, truncated: Boolean(retryTruncated) };
 }

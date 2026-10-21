@@ -30,7 +30,7 @@ export function useChart(options: UseChartOptions = {}) {
       placeVal: BirthplaceRegion,
       genderVal: "Nam" | "Nữ",
       tzOffsetVal?: number,
-    ) => {
+    ): any | null => {
       try {
         const result = generateTuviAstrolabe(dateVal, timeVal, placeVal, genderVal, tzOffsetVal);
         setCalculated(result);
@@ -41,8 +41,10 @@ export function useChart(options: UseChartOptions = {}) {
             document.getElementById("chart-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
           });
         }
+        return result;
       } catch (error: any) {
         alert(`Lỗi khi tạo lá số: ${error?.message || error}`);
+        return null;
       }
     },
     [onRecalculate],

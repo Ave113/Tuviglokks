@@ -5,17 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs && node -e \"const fs=require('fs');const p=require('path');const s='src/knowledge/data';const d='dist/knowledge-data';fs.mkdirSync(d,{recursive:true});for(const f of fs.readdirSync(s))fs.copyFileSync(p.join(s,f),p.join(d,f));console.log('copied knowledge-data',fs.readdirSync(d).length,'files')\"",
     "start": "node dist/server.cjs",
     "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\"",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "pretest": "npm run lint",
+    "test": "vitest run",
+    "qa:benchmark20": "tsx scripts/qa-benchmark-20.mts",
+    "qa:benchmark20:ai": "tsx scripts/qa-benchmark-20.mts --with-ai"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
-    "docx": "^9.7.1",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "express-rate-limit": "^8.5.2",
@@ -25,7 +27,8 @@
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "rehype-sanitize": "^6.0.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

@@ -1,5 +1,14 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "{dist/server.cjs,dist/knowledge-data/**,src/knowledge/data/**}",
+      "maxDuration": 300
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",

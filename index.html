@@ -3,8 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Ứng dụng lập lá số Tử Vi Đẩu Số chuẩn xác theo giờ TuviGLOBAL, hiệu chỉnh múi giờ lịch sử Việt Nam và luận giải chi tiết bằng công nghệ Trí tuệ Nhân tạo AI." />
+    <meta name="description" content="Ứng dụng lập lá số Tử Vi Đẩu Số chuẩn xác theo giờ địa chi, hiệu chỉnh múi giờ lịch sử Việt Nam và luận giải chi tiết bằng công nghệ Trí tuệ Nhân tạo AI." />
+    <link rel="icon" type="image/png" href="/app-icon-tight.png" />
+    <link rel="apple-touch-icon" href="/app-icon-tight.png" />
     <title>Lá Số Tử Vi & Luận Giải AI</title>
+    <!-- Áp theme TRƯỚC khi paint (chống nháy sáng/tối): có lựa chọn đã lưu thì theo lựa chọn,
+         chưa chọn bao giờ thì theo hệ điều hành. -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("tuvi_theme");
+          var dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
     <script>
       (function() {
         var _fetch = window.fetch;

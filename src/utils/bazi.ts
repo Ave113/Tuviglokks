@@ -152,12 +152,22 @@ function emptyWuXing(): Record<string, number> {
  * @param gender "Nam" | "Nữ" (cho Đại Vận thuận/nghịch).
  */
 export function computeBaZi(normalizedDate: Date, gender: "Nam" | "Nữ"): BaZiChart {
+  // DẠ TÝ (23:00–23:59): Tử Vi an sang ngày mới (dateShift +1 trong tuvi.ts).
+  // Bát Tự theo phái đa số (Tý sơ hoán nhật / 23:00 đổi ngày): tính toàn bộ
+  // Tứ Trụ theo 00:30 ngày hôm sau — vừa khớp Nhật trụ với Tử Vi, vừa giữ can
+  // giờ đúng Ngũ Thử Độn của can ngày mới, vừa kéo lunarText về cùng ngày âm
+  // với lá Tử Vi (tránh AI thấy 2 ngày âm khác nhau cho cùng 1 lá).
+  const eff = new Date(normalizedDate.getTime());
+  if (eff.getHours() === 23) {
+    eff.setDate(eff.getDate() + 1);
+    eff.setHours(0, 30, 0, 0);
+  }
   const solar = Solar.fromYmdHms(
-    normalizedDate.getFullYear(),
-    normalizedDate.getMonth() + 1,
-    normalizedDate.getDate(),
-    normalizedDate.getHours(),
-    normalizedDate.getMinutes(),
+    eff.getFullYear(),
+    eff.getMonth() + 1,
+    eff.getDate(),
+    eff.getHours(),
+    eff.getMinutes(),
     0,
   );
   const lunar = solar.getLunar();
@@ -247,11 +257,183 @@ export function computeBaZi(normalizedDate: Date, gender: "Nam" | "Nữ"): BaZiC
 }
 
 // ----------------------------------------------------------------------------
+// ĐẠI VẬN ĐANG ĐI — "Bát Tự trong vận XX" (MÁY CHỐT, AI BÁM)
+// ----------------------------------------------------------------------------
+
+const GAN_ELEMENT: Record<string, string> = {
+  Giáp: "Mộc", Ất: "Mộc", Bính: "Hỏa", Đinh: "Hỏa", Mậu: "Thổ",
+  Kỷ: "Thổ", Canh: "Kim", Tân: "Kim", Nhâm: "Thủy", Quý: "Thủy",
+};
+
+const WX_SINH: Record<string, string> = {
+  Mộc: "Hỏa", Hỏa: "Thổ", Thổ: "Kim", Kim: "Thủy", Thủy: "Mộc",
+};
+const WX_KHAC: Record<string, string> = {
+  Mộc: "Thổ", Thổ: "Thủy", Thủy: "Hỏa", Hỏa: "Kim", Kim: "Mộc",
+};
+
+export interface CurrentDaYunResolved {
+  /** Tên vận can-chi, vd "Mậu Thìn" */
+  ganChiVi: string;
+  startYear: number;
+  /** Năm kết (bước sau - 1); null nếu là vận cuối trong list */
+  endYear: number | null;
+  startAge: number;
+  endAge: number | null;
+  index: number;
+  /** Ngũ hành can vận */
+  ganElement: string;
+  /** Ngũ hành chi vận (bản khí) */
+  zhiElement: string;
+  /** Quan hệ thô can vận vs Nhật Chủ */
+  vsDayMaster: "sinh_nhat" | "nhat_sinh" | "cung" | "khac_nhat" | "nhat_khac" | "trung";
+  vsDayMasterNote: string;
+  /** 1 dòng chốt cho AI / UI */
+  headline: string;
+  /** Còn bước trước/sau (tên) */
+  prevGanChiVi?: string;
+  nextGanChiVi?: string;
+}
+
+function zhiElementOf(ganChiVi: string): string {
+  const parts = String(ganChiVi || "").trim().split(/\s+/);
+  const zhi = parts[1] || "";
+  const map: Record<string, string> = {
+    Tý: "Thủy", Sửu: "Thổ", Dần: "Mộc", Mão: "Mộc", Thìn: "Thổ", Tỵ: "Hỏa",
+    Ngọ: "Hỏa", Mùi: "Thổ", Thân: "Kim", Dậu: "Kim", Tuất: "Thổ", Hợi: "Thủy",
+  };
+  return map[zhi] || "";
+}
+
+function vsDayMaster(
+  ganEl: string,
+  dayEl: string,
+): { rel: CurrentDaYunResolved["vsDayMaster"]; note: string } {
+  if (!ganEl || !dayEl) return { rel: "trung", note: "chưa rõ ngũ hành can vận / Nhật Chủ" };
+  if (ganEl === dayEl) return { rel: "cung", note: `Can vận ${ganEl} đồng hành Nhật Chủ ${dayEl} (tỷ kiếp khí)` };
+  if (WX_SINH[ganEl] === dayEl) return { rel: "sinh_nhat", note: `Can vận ${ganEl} sinh Nhật Chủ ${dayEl} (ấn/khí nuôi)` };
+  if (WX_SINH[dayEl] === ganEl) return { rel: "nhat_sinh", note: `Nhật Chủ ${dayEl} sinh can vận ${ganEl} (thực thương khí — hao/tỏa)` };
+  if (WX_KHAC[ganEl] === dayEl) return { rel: "khac_nhat", note: `Can vận ${ganEl} khắc Nhật Chủ ${dayEl} (quan sát khí — áp/chế)` };
+  if (WX_KHAC[dayEl] === ganEl) return { rel: "nhat_khac", note: `Nhật Chủ ${dayEl} khắc can vận ${ganEl} (tài khí — gánh/lấy)` };
+  return { rel: "trung", note: `Can vận ${ganEl} vs Nhật ${dayEl}` };
+}
+
+/**
+ * Chốt Đại Vận đang đi tại năm xem (startYear ≤ year < endYear bước sau).
+ * Đây là nguồn sự thật cho câu "Bát Tự trong vận XX".
+ */
+export function resolveCurrentDaYun(
+  b: BaZiChart,
+  transitYear: number,
+): CurrentDaYunResolved | null {
+  const list = b?.daYun || [];
+  if (!list.length) return null;
+  const y = Number(transitYear);
+  if (!Number.isFinite(y) || y < 1800 || y > 2200) return null;
+
+  // Bước cuối có startYear ≤ năm xem
+  let idx = -1;
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].startYear <= y) idx = i;
+  }
+  if (idx < 0) {
+    // Năm xem TRƯỚC cả vận đầu tiên trong list = chưa tới tuổi khởi vận
+    // (bước "chưa nhập vận" của lunar-typescript đã bị filter khỏi list).
+    // KHÔNG được gán vận đầu tiên cho trẻ chưa nhập vận — trả null.
+    return null;
+  }
+
+  const cur = list[idx];
+  const next = list[idx + 1];
+  const prev = idx > 0 ? list[idx - 1] : undefined;
+  const endYear = next ? next.startYear - 1 : null;
+  const endAge =
+    endYear != null && cur.startYear
+      ? cur.startAge + (endYear - cur.startYear)
+      : next
+        ? next.startAge - 1
+        : null;
+
+  const gan = String(cur.ganChiVi || "").trim().split(/\s+/)[0] || "";
+  const ganElement = GAN_ELEMENT[gan] || "";
+  const zhiElement = zhiElementOf(cur.ganChiVi);
+  const { rel, note } = vsDayMaster(ganElement, b.dayMasterElement);
+
+  const yearSpan =
+    endYear != null
+      ? `${cur.startYear}–${endYear}`
+      : `từ ${cur.startYear} (chưa chốt năm kết trong list)`;
+  const ageSpan =
+    endAge != null ? `${cur.startAge}–${endAge} tuổi` : `từ ${cur.startAge} tuổi`;
+
+  const headline =
+    `Bát Tự trong vận ${cur.ganChiVi} (${yearSpan}, ~${ageSpan})` +
+    ` — năm xem ${y} thuộc vận này.`;
+
+  return {
+    ganChiVi: cur.ganChiVi,
+    startYear: cur.startYear,
+    endYear,
+    startAge: cur.startAge,
+    endAge,
+    index: idx,
+    ganElement,
+    zhiElement,
+    vsDayMaster: rel,
+    vsDayMasterNote: note,
+    headline,
+    prevGanChiVi: prev?.ganChiVi,
+    nextGanChiVi: next?.ganChiVi,
+  };
+}
+
+/** Cheat sheet máy — AI BẮT BUỘC dùng đúng tên vận này khi nói "trong vận …". */
+export function formatCurrentDaYunReport(
+  b: BaZiChart,
+  transitYear: number,
+): string {
+  const cur = resolveCurrentDaYun(b, transitYear);
+  const lines: string[] = [
+    `=== BÁT TỰ ĐANG TRONG VẬN NÀO (MÁY CHỐT — NĂM XEM ${transitYear}) ===`,
+    "CẤM tự nhẩm / đổi tên vận. Khi luận hạn năm hoặc đối chiếu TV, phải nói đúng dòng HEADLINE dưới.",
+  ];
+
+  if (!cur) {
+    lines.push("(Chưa tính được Đại Vận — thiếu list daYun, hoặc năm xem chưa tới tuổi khởi vận. KHÔNG gán tên vận.)");
+    return lines.join("\n");
+  }
+
+  lines.push(`HEADLINE: ${cur.headline}`);
+  lines.push(
+    `- Tên vận: ${cur.ganChiVi} | Can hành: ${cur.ganElement || "?"} | Chi hành: ${cur.zhiElement || "?"}`,
+  );
+  lines.push(
+    `- Khoảng: năm ${cur.startYear}${cur.endYear != null ? `–${cur.endYear}` : "+"} | tuổi ~${cur.startAge}${cur.endAge != null ? `–${cur.endAge}` : "+"}`,
+  );
+  lines.push(`- Vs Nhật Chủ (${b.dayMasterVi} ${b.dayMasterElement}): ${cur.vsDayMasterNote}`);
+  if (cur.prevGanChiVi) lines.push(`- Vận trước: ${cur.prevGanChiVi}`);
+  if (cur.nextGanChiVi) lines.push(`- Vận sau: ${cur.nextGanChiVi}`);
+  lines.push(
+    `- Cách nói chuẩn: "Bát Tự trong vận ${cur.ganChiVi}" (không viết sai can–chi; không gán vận khác năm ${transitYear}).`,
+  );
+  lines.push(
+    "- Dùng để: phân kỳ hạn năm, chéo với Đại Hạn/Lưu TV, gắn thẻ tin cậy trục VẬN HẠN — không thay lá Tử Vi.",
+  );
+
+  return lines.join("\n");
+}
+
+// ----------------------------------------------------------------------------
 // XUẤT VĂN BẢN CHO AI (đưa vào prompt /api/interpret).
 // ----------------------------------------------------------------------------
 
+export interface BaZiPromptOpts {
+  /** Năm xem hạn — để chốt "đang trong vận XX" + Lưu niên */
+  transitYear?: number;
+}
+
 /** Tóm tắt lá Bát Tự thành đoạn text gọn để nhồi vào prompt luận giải. */
-export function baZiToPromptText(b: BaZiChart): string {
+export function baZiToPromptText(b: BaZiChart, opts?: BaZiPromptOpts): string {
   const row = (p: BaZiPillar) =>
     `- Trụ ${p.label}: ${p.ganChiVi} ` +
     `(Can ${p.ganElement}/Thập Thần ${p.shiShenGanVi}; Chi ${p.zhiElement}; ` +
@@ -266,6 +448,14 @@ export function baZiToPromptText(b: BaZiChart): string {
     .map((d) => `${d.startAge}t/${d.startYear} ${d.ganChiVi}`)
     .join("  |  ");
 
+  const transitYear =
+    opts?.transitYear && Number.isFinite(opts.transitYear)
+      ? Math.trunc(opts.transitYear)
+      : new Date().getFullYear();
+
+  // Trụ + list Đại Vận. Timeline đầy đủ (vận đang đi + Lưu niên) gắn ở
+  // buildChartPromptContext / chat qua buildBaZiTimelineReport — tránh circular ESM.
+  void transitYear;
   return [
     `=== LÁ SỐ BÁT TỰ / TỨ TRỤ (đối chiếu với Tử Vi) ===`,
     `Âm lịch: ${b.lunarText}`,
@@ -276,6 +466,6 @@ export function baZiToPromptText(b: BaZiChart): string {
     row(b.pillars.hour),
     `Ngũ hành (8 chữ hiện): ${wx(b.wuXingVisible)}`,
     `Ngũ hành (tính cả Tàng Can): ${wx(b.wuXingWithHidden)}`,
-    `Đại Vận (${b.yunForward ? "thuận" : "nghịch"}, khởi ${b.yunStartSolarYmd}): ${dy}`,
+    `Đại Vận list (${b.yunForward ? "thuận" : "nghịch"}, khởi ${b.yunStartSolarYmd}): ${dy}`,
   ].join("\n");
 }

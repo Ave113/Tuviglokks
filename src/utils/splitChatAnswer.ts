@@ -1,8 +1,11 @@
 /**
  * Tách câu trả lời chat: kết luận (đọc nhanh) vs căn cứ chi tiết (thu gọn).
  * Khớp nhãn "Căn cứ" (chuẩn) hoặc "Cân cứ" (typo cũ từ bản trước).
+ *
+ * Lưu ý: KHÔNG dùng `\b` sau "cứ" — JS `\b` chạy theo \w ASCII nên "cứ\b" chỉ khớp
+ * khi ngay sau là ký tự ASCII. Dùng lookahead Unicode `(?![\p{L}])` làm ranh giới từ.
  */
-export const CHAT_DETAIL_HEADING_PATTERN = /\n\s*(Căn cứ\b|Cân cứ\b)/i;
+export const CHAT_DETAIL_HEADING_PATTERN = /\n\s*(Căn cứ|Cân cứ)(?![\p{L}])/iu;
 
 export interface SplitChatAnswer {
   lead: string;

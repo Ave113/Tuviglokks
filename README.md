@@ -50,7 +50,7 @@ Chi tiết mẫu: [`.env.example`](.env.example).
 | `GEMINI_API_KEY` | Key Gemini phía server |
 | `ALLOW_SERVER_KEY` | `0` cấm / `1` bật fallback key server. **Không set:** dev = bật; **production & Vercel = cấm** |
 | `PORT` | Cổng listen (local / Node host) |
-| `RATE_LIMIT_FORCE` | `1` = ép bật rate-limit in-memory kể cả trên Vercel (vẫn yếu) |
+| `RATE_LIMIT_FORCE` | `0` = tắt rate-limit; mặc định **bật** (kể cả Vercel per-instance, vẫn yếu hơn Redis) |
 | `VERCEL` | Do platform set — bật mode serverless API |
 | `NODE_ENV` | `production` khi `npm start` / deploy |
 
@@ -83,10 +83,10 @@ Guard: body JSON ≤ 4MB, thiếu 12 cung → 400, thiếu key → 400, rate-lim
 
 ## Rate limit
 
-- **Tự host (`npm start`):** bật — **5 request / 60s / IP** khi dùng **key server**. BYOK **bypass**.
-- **Vercel:** mặc định **tắt** (counter in-memory không chia sẻ instance / cold start).  
-  Production public nên dùng **Vercel Firewall** hoặc **Upstash Redis** (hoặc tương đương).  
-  `RATE_LIMIT_FORCE=1` chỉ là lớp yếu per-instance.
+- **Mặc định bật** (Node + Vercel): **5 request / 60s / IP** khi dùng **key server** hoặc BYOK **không hợp lệ** (quá ngắn / rác).
+- **BYOK hợp lệ** (đủ dài, shape kiểu `AIza…` / `AQ.…` / secret dài): **bypass** (quota user).
+- **Vercel:** counter in-memory **per-instance** (không thay Firewall/Redis). Production public nên thêm **Vercel Firewall** hoặc **Upstash Redis**.
+- `RATE_LIMIT_FORCE=0` tắt hẳn.
 
 ## Deploy
 
@@ -102,16 +102,20 @@ npm start
 
 ### Vercel
 
-- `vercel.json` rewrite `/api/*` → `api/index.ts` (Express export).
+- `vercel.json` chốt cứng:
+  - **buildCommand:** `npm run build` (Vite FE + esbuild `dist/server.cjs` + copy `knowledge-data`)
+  - **outputDirectory:** `dist` (tránh serve nhầm `index.html` dev trỏ `/src/main.tsx`)
+  - rewrite `/api/*` → `api/index.ts` (load Express từ `dist/server.cjs`)
 - Env trên dashboard:
   - **Khuyến nghị public:** không set `ALLOW_SERVER_KEY`, hoặc `ALLOW_SERVER_KEY=0`; user dùng BYOK.
   - **Cố ý free shared key:** `GEMINI_API_KEY` + `ALLOW_SERVER_KEY=1` + bật Firewall.
 - Rate-limit in-app trên Vercel **không đủ** — xem mục Rate limit.
+- Dashboard nếu còn override Build/Output thủ công: nên **Clear** để lấy giá trị từ `vercel.json`.
 
 ## Bảo mật & privacy (ngắn)
 
 - **Đừng** commit `.env` / `.env.local`.
-- BYOK lưu **localStorage** trình duyệt — máy dùng chung / XSS có thể lộ key.
+- BYOK lưu **localStorage** khi bấm Lưu (ghi nhớ trên máy); bấm Xóa để gỡ. Máy dùng chung / XSS có thể lộ key.
 - Ngày giờ sinh + lá số + câu hỏi được gửi lên **Google Gemini** khi gọi AI.
 - Public mà bật `ALLOW_SERVER_KEY=1` = ai cũng có thể đốt quota Gemini của bạn.
 

@@ -11,6 +11,9 @@ import {
   stemNameByYear,
   TU_HOA_BY_STEM,
   type TuHoaQuartet,
+  normalizeHeavenlyStem,
+  getNatalTuHoaQuartet,
+  extractBirthHeavenlyStem,
 } from "./tuHoa";
 import { allStarsOf, normalizeStarName } from "./chartRelations";
 
@@ -22,7 +25,8 @@ function iztroTuHoaByStemVi(): Record<string, TuHoaQuartet> {
   const out: Record<string, TuHoaQuartet> = {};
   for (const [stemKey, info] of Object.entries(heavenlyStems)) {
     const stemName = (stemVi as Record<string, string>)[stemKey];
-    const starKeys = (info as { mutagen: string[] }).mutagen;
+    // iztro mutagen is readonly tuple; cast via unknown for iteration as string keys
+    const starKeys = (info as unknown as { mutagen: readonly string[] }).mutagen;
     if (!stemName || !Array.isArray(starKeys) || starKeys.length !== 4) {
       throw new Error(`iztro heavenlyStems thiếu mutagen cho ${stemKey}`);
     }
@@ -141,4 +145,48 @@ describe("TU_HOA_BY_STEM ↔ mutagen trên lá iztro thật", () => {
       }
     },
   );
+
+  describe("Khóa cứng logic Bảng Tứ Hóa Bẩm Sinh theo Can Năm", () => {
+    it("chuẩn hóa can chữ thường, có dấu và không dấu về đúng can chuẩn", () => {
+      expect(normalizeHeavenlyStem("canh")).toBe("Canh");
+      expect(normalizeHeavenlyStem("giap")).toBe("Giáp");
+      expect(normalizeHeavenlyStem("giáp")).toBe("Giáp");
+      expect(normalizeHeavenlyStem("ất ")).toBe("Ất");
+      expect(normalizeHeavenlyStem("at")).toBe("Ất");
+      expect(normalizeHeavenlyStem("binh")).toBe("Bính");
+      expect(normalizeHeavenlyStem("dinh")).toBe("Đinh");
+      expect(normalizeHeavenlyStem("mau")).toBe("Mậu");
+      expect(normalizeHeavenlyStem("ky")).toBe("Kỷ");
+      expect(normalizeHeavenlyStem("tan")).toBe("Tân");
+      expect(normalizeHeavenlyStem("nham")).toBe("Nhâm");
+      expect(normalizeHeavenlyStem("quy")).toBe("Quý");
+      expect(normalizeHeavenlyStem("Canh Thân")).toBe("Canh");
+      // Các ca Can ghép với chi Tuất (tuyệt đối không bị nhầm thành Ất):
+      expect(normalizeHeavenlyStem("Canh Tuất")).toBe("Canh");
+      expect(normalizeHeavenlyStem("Bính Tuất")).toBe("Bính");
+      expect(normalizeHeavenlyStem("Mậu Tuất")).toBe("Mậu");
+      expect(normalizeHeavenlyStem("Tân Tuất")).toBe("Tân");
+      expect(normalizeHeavenlyStem("Quý Tuất")).toBe("Quý");
+      expect(normalizeHeavenlyStem("Giáp Tuất")).toBe("Giáp");
+      // Các chuỗi có từ chỉ can đi kèm tiền tố có dấu:
+      expect(normalizeHeavenlyStem("Năm Ất")).toBe("Ất");
+      expect(normalizeHeavenlyStem("Năm Kỷ")).toBe("Kỷ");
+      expect(normalizeHeavenlyStem("thiên can Đinh")).toBe("Đinh");
+      expect(normalizeHeavenlyStem("năm quý")).toBe("Quý");
+    });
+
+    it("getNatalTuHoaQuartet hoạt động chính xác với cả can viết thường hoặc có khoảng trắng", () => {
+      const quartet = getNatalTuHoaQuartet("canh");
+      expect(quartet).toEqual(["Thái Dương", "Vũ Khúc", "Thái Âm", "Thiên Đồng"]);
+
+      const giapQuartet = getNatalTuHoaQuartet(" giáp ");
+      expect(giapQuartet).toEqual(["Liêm Trinh", "Phá Quân", "Vũ Khúc", "Thái Dương"]);
+    });
+
+    it("extractBirthHeavenlyStem trích xuất chuẩn xác từ chineseDate", () => {
+      expect(extractBirthHeavenlyStem({ chineseDate: "Bính Dần - Canh Dần..." })).toBe("Bính");
+      expect(extractBirthHeavenlyStem({ chineseDate: "Giáp Tý" })).toBe("Giáp");
+      expect(extractBirthHeavenlyStem({ birthLunarYear: 1990 })).toBe("Canh");
+    });
+  });
 });
